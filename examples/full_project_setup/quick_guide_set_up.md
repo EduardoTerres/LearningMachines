@@ -1,6 +1,6 @@
 This is just for refence since you dont have the robot and dont know the ip address etc.
 # macOS (Apple Silicon) 
-
+step 1. python3.8 -m venv .venv (or whatever is the equivilant for the way you launch python3.8) and then source ./.venv/bin/activate or .\.venv\Scripts\Activate.ps1. After this, the Python modules you need are already in requirements.txt, so you can just run python -m pip install -r requirements.txt to install those.
 ## 1. Simulation
 
 ### Terminal 1: Start CoppeliaSim
