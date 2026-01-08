@@ -1,7 +1,44 @@
 from robobo_interface import IRobobo, SimulationRobobo
 
+def read_and_log_irs(rob: IRobobo, sensors: dict) -> None:
+    """
+    Read the IR sensors and log the values.
+    """
+    ir_values = rob.read_irs()
 
-def find_object_and_turnR(rob: IRobobo) -> None:
+    front_left = ir_values[2] or 0.0  
+    front_right = ir_values[3] or 0.0
+    front_center = ir_values[4] or 0.0
+    front_right_right = ir_values[5] or 0.0
+    front_left_left = ir_values[7] or 0.0
+    
+    back_left = ir_values[0] or 0.0
+    back_right = ir_values[1] or 0.0
+    back_center = ir_values[6] or 0.0
+
+    # Log sensor values
+    sensors["front_left"].append(front_left)
+    sensors["front_right"].append(front_right)
+    sensors["front_center"].append(front_center)
+    sensors["front_right_right"].append(front_right_right)
+    sensors["front_left_left"].append(front_left_left)
+    sensors["back_left"].append(back_left)
+    sensors["back_right"].append(back_right)
+    sensors["back_center"].append(back_center)
+
+    return (
+        front_left,
+        front_right,
+        front_center,
+        front_right_right,
+        front_left_left,
+        back_left,
+        back_right,
+        back_center,
+    ), sensors
+
+
+def find_object_and_turnR(rob: IRobobo) -> dict:
     """
     Example 1: Robot goes straight until it senses an object getting near,
     then turns right without touching it.
@@ -11,24 +48,43 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         rob.play_simulation()
     
     DETECTION_THRESHOLD = 80.0
-    FORWARD_SPEED = 100
-    TURN_SPEED = 100
-    TURN_DURATION = 1000
-    
-    
+    FORWARD_SPEED = 10
+    TURN_SPEED = 10
+
+    sensors = {
+        "front_left": [],
+        "front_right": [],
+        "front_center": [],
+        "front_right_right": [],
+        "front_left_left": [],
+        "back_left": [],
+        "back_right": [],
+        "back_center": [],
+    }
+
+    phase_durations = {
+        "phase_1": 0,
+        "phase_2": 20,
+        "phase_3": 20,
+    }
+
+    # Phase 1: forward
     while True:
-        ir_values = rob.read_irs()
+        phase_durations["phase_1"] = phase_durations["phase_1"] + 1
+        (
+            (
+                front_left,
+                front_right,
+                front_center,
+                front_right_right,
+                front_left_left,
+                back_left,
+                back_right,
+                back_center,
+            ),
+            sensors
+        ) = read_and_log_irs(rob, sensors)
         
-        # Front sensors: [BackL, BackR, FrontL, FrontR, FrontC, FrontRR, BackC, FrontLL] look base.py
-        front_left = ir_values[2] if ir_values[2] is not None else 0.0  
-        front_right = ir_values[3] if ir_values[3] is not None else 0.0
-        front_center = ir_values[4] if ir_values[4] is not None else 0.0
-        front_right_right = ir_values[5] if ir_values[5] is not None else 0.0
-        front_left_left = ir_values[7] if ir_values[7] is not None else 0.0
-        
-        back_left = ir_values[0] if ir_values[0] is not None else 0.0
-        back_right = ir_values[1] if ir_values[1] is not None else 0.0
-        back_center = ir_values[6] if ir_values[6] is not None else 0.0
         
         front_sensors = [front_left, front_right, front_center]
         front_max = max(front_sensors)
@@ -36,54 +92,27 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         back_sensors = [back_left, back_right, back_center]
         back_max = max(back_sensors)
         
-        print(f"Front - L:{front_left:.1f} C:{front_center:.1f} R:{front_right:.1f} | Max:{front_max:.1f}")
-        print(f"Back  - L:{back_left:.1f} C:{back_center:.1f} R:{back_right:.1f} | Max:{back_max:.1f}")
-        
-        # Check if any front sensor detects an object (we only care about front for turning)
+        # Stop if object is detected
         if front_max > DETECTION_THRESHOLD:
-            rob.move_blocking(FORWARD_SPEED, -FORWARD_SPEED, 400) #turn right if object is in front
-        else:
-            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
-        
-        rob.sleep(0.1)
+            break
 
+        rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
+        rob.talk("Moving forward")
 
-def find_object_and_back(rob: IRobobo) -> None:
-    """
-    Example 2: Robot goes straight until it touches the wall,
-    then goes backward.
-    Uses front sensors for wall detection.
-    """
+    # Phase 2: turn right in 20 steps
+    for _ in range(phase_durations["phase_2"]):
+        _, sensors = read_and_log_irs(rob, sensors)
+        rob.move_blocking(-TURN_SPEED, TURN_SPEED, 100)
+        rob.talk("Turning right")
+
+    # Phase 3: Move a bit
+    for _ in range(phase_durations["phase_3"]):
+        _, sensors = read_and_log_irs(rob, sensors)
+        rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
+        rob.talk("Moving forward (after turning right)")
+    
     if isinstance(rob, SimulationRobobo):
-        rob.play_simulation()
+        rob.stop_simulation()
+
+    return sensors, phase_durations
     
-    TOUCH_THRESHOLD = 50.0
-    FORWARD_SPEED = 40
-    BACKWARD_SPEED = 40
-    BACKWARD_DURATION = 1500
-    
-    while True:
-        ir_values = rob.read_irs()
-        
-        front_left = ir_values[2] if ir_values[2] is not None else 0.0
-        front_right = ir_values[3] if ir_values[3] is not None else 0.0
-        front_center = ir_values[4] if ir_values[4] is not None else 0.0
-        
-        back_left = ir_values[0] if ir_values[0] is not None else 0.0
-        back_right = ir_values[1] if ir_values[1] is not None else 0.0
-        back_center = ir_values[6] if ir_values[6] is not None else 0.0
-        
-        front_max = max(front_left, front_right, front_center)
-        back_max = max(back_left, back_right, back_center)
-        
-        print(f"Front - L:{front_left:.1f} C:{front_center:.1f} R:{front_right:.1f} | Max:{front_max:.1f}")
-        print(f"Back  - L:{back_left:.1f} C:{back_center:.1f} R:{back_right:.1f}")
-        
-        if front_max > TOUCH_THRESHOLD:
-            rob.move_blocking(-BACKWARD_SPEED, -BACKWARD_SPEED, BACKWARD_DURATION)
-            if back_max > TOUCH_THRESHOLD: 
-                rob.move_blocking(int(TURN_SPEED*0.5), int(-TURN_SPEED*0.5), TURN_DURATION + 300)#slower if there is something behind
-        else:
-            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
-        
-        rob.sleep(0.1)
