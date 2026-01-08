@@ -10,13 +10,13 @@ def find_object_and_turnR(rob: IRobobo) -> None:
     if isinstance(rob, SimulationRobobo):
         rob.play_simulation()
     
-    DETECTION_THRESHOLD = 11.0
-    FORWARD_SPEED = 50
-    TURN_SPEED = 40
+    DETECTION_THRESHOLD = 80.0
+    FORWARD_SPEED = 10
+    TURN_SPEED = 100
     TURN_DURATION = 1000
     
-    
-    while True:
+    forward = True
+    while forward:
         ir_values = rob.read_irs()
         
         # Front sensors: [BackL, BackR, FrontL, FrontR, FrontC, FrontRR, BackC, FrontLL] look base.py
@@ -36,19 +36,18 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         back_sensors = [back_left, back_right, back_center]
         back_max = max(back_sensors)
         
-        print(f"Front - L:{front_left:.1f} C:{front_center:.1f} R:{front_right:.1f} | Max:{front_max:.1f}")
-        print(f"Back  - L:{back_left:.1f} C:{back_center:.1f} R:{back_right:.1f} | Max:{back_max:.1f}")
+        print(f"Front: {front_left:.1f}, {front_center:.1f}, {front_right:.1f}")
         
-        # Check if any front sensor detects an object (we only care about front for turning)
+        # Stop if object is detected
         if front_max > DETECTION_THRESHOLD:
-            if back_max > DETECTION_THRESHOLD:
-                rob.move_blocking(TURN_SPEED*0.5, -TURN_SPEED*0.5, TURN_DURATION + 300)
-            else:
-                rob.move_blocking(TURN_SPEED, -TURN_SPEED, TURN_DURATION)
-        else:
-            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
+            forward = False
         
-        rob.sleep(0.1)
+        rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
+        rob.talk("Moving forward")
+
+    # Then turn right
+    rob.move_blocking(FORWARD_SPEED, -FORWARD_SPEED, 400)
+    rob.talk("Turning right")
 
 
 def find_object_and_back(rob: IRobobo) -> None:
