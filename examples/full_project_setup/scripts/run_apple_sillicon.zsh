@@ -2,6 +2,8 @@
 
 set -xe
 
+# source ./.venv/bin/activate 
+
 docker build --platform linux/amd64 --tag learning_machines .
 # Mounting to a directory that does not exist creates it.
 # Mounting to relative paths works since docker engine 23

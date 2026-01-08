@@ -2,7 +2,7 @@
 import sys
 
 from robobo_interface import SimulationRobobo, HardwareRobobo
-from learning_machines import run_all_actions
+from learning_machines import find_object_and_turnR, plot_all_sensors
 
 
 if __name__ == "__main__":
@@ -19,4 +19,11 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"{sys.argv[1]} is not a valid argument.")
 
-    run_all_actions(rob)
+    sensor_logs = [
+        find_object_and_turnR(rob)
+        for _ in range(2)
+    ]
+
+    plot_all_sensors(sensor_logs)
+
+

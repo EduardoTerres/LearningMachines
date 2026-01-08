@@ -1,17 +1,6 @@
 from robobo_interface import IRobobo, SimulationRobobo
 
-sensors = {
-    "front_left": [],
-    "front_right": [],
-    "front_center": [],
-    "front_right_right": [],
-    "front_left_left": [],
-    "back_left": [],
-    "back_right": [],
-    "back_center": [],
-}
-
-def read_and_log_irs(rob: IRobobo) -> None:
+def read_and_log_irs(rob: IRobobo, sensors: dict) -> None:
     """
     Read the IR sensors and log the values.
     """
@@ -46,9 +35,11 @@ def read_and_log_irs(rob: IRobobo) -> None:
         back_left,
         back_right,
         back_center,
+        sensors
     )
 
-def find_object_and_turnR(rob: IRobobo) -> None:
+
+def find_object_and_turnR(rob: IRobobo) -> dict:
     """
     Example 1: Robot goes straight until it senses an object getting near,
     then turns right without touching it.
@@ -61,18 +52,32 @@ def find_object_and_turnR(rob: IRobobo) -> None:
     FORWARD_SPEED = 10
     TURN_SPEED = 10
 
+    sensors = {
+        "front_left": [],
+        "front_right": [],
+        "front_center": [],
+        "front_right_right": [],
+        "front_left_left": [],
+        "back_left": [],
+        "back_right": [],
+        "back_center": [],
+    }
+
     # Phase 1: forward
     while True:
         (
-            front_left,
-            front_right,
-            front_center,
-            front_right_right,
-            front_left_left,
-            back_left,
-            back_right,
-            back_center,
-        ) = read_and_log_irs(rob)
+            (
+                front_left,
+                front_right,
+                front_center,
+                front_right_right,
+                front_left_left,
+                back_left,
+                back_right,
+                back_center,
+            ),
+            sensors
+        ) = read_and_log_irs(rob, sensors)
         
         
         front_sensors = [front_left, front_right, front_center, front_right_right, front_left_left]
@@ -90,56 +95,18 @@ def find_object_and_turnR(rob: IRobobo) -> None:
 
     # Phase 2: turn right in 20 steps
     for _ in range(20):
-        read_and_log_irs(rob)
+        _, sensors = read_and_log_irs(rob, sensors)
         rob.move_blocking(-TURN_SPEED, TURN_SPEED, 100)
         rob.talk("Turning right")
 
     # Phase 3: Move a bit
     for _ in range(20):
-        read_and_log_irs(rob)
+        _, sensors = read_and_log_irs(rob, sensors)
         rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
         rob.talk("Moving forward (after turning right)")
     
     if isinstance(rob, SimulationRobobo):
         rob.stop_simulation()
 
-
-def find_object_and_back(rob: IRobobo) -> None:
-    """
-    Example 2: Robot goes straight until it touches the wall,
-    then goes backward.
-    Uses front sensors for wall detection.
-    """
-    if isinstance(rob, SimulationRobobo):
-        rob.play_simulation()
+    return sensors
     
-    TOUCH_THRESHOLD = 50.0
-    FORWARD_SPEED = 40
-    BACKWARD_SPEED = 40
-    BACKWARD_DURATION = 1500
-    
-    while True:
-        ir_values = rob.read_irs()
-        
-        front_left = ir_values[2] if ir_values[2] is not None else 0.0
-        front_right = ir_values[3] if ir_values[3] is not None else 0.0
-        front_center = ir_values[4] if ir_values[4] is not None else 0.0
-        
-        back_left = ir_values[0] if ir_values[0] is not None else 0.0
-        back_right = ir_values[1] if ir_values[1] is not None else 0.0
-        back_center = ir_values[6] if ir_values[6] is not None else 0.0
-        
-        front_max = max(front_left, front_right, front_center)
-        back_max = max(back_left, back_right, back_center)
-        
-        print(f"Front - L:{front_left:.1f} C:{front_center:.1f} R:{front_right:.1f} | Max:{front_max:.1f}")
-        print(f"Back  - L:{back_left:.1f} C:{back_center:.1f} R:{back_right:.1f}")
-        
-        if front_max > TOUCH_THRESHOLD:
-            rob.move_blocking(-BACKWARD_SPEED, -BACKWARD_SPEED, BACKWARD_DURATION)
-            if back_max > TOUCH_THRESHOLD:
-                rob.move_blocking(-BACKWARD_SPEED*0.5, -BACKWARD_SPEED*0.5, BACKWARD_DURATION) #slower if there is something behind
-        else:
-            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
-        
-        rob.sleep(0.1)
