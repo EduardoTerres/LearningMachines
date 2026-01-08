@@ -86,7 +86,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
         ) = read_and_log_irs(rob, sensors)
         
         
-        front_sensors = [front_left, front_right, front_center, front_right_right, front_left_left]
+        front_sensors = [front_left, front_right, front_center]
         front_max = max(front_sensors)
         
         back_sensors = [back_left, back_right, back_center]
