@@ -19,11 +19,13 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"{sys.argv[1]} is not a valid argument.")
 
-    sensor_logs = [
-        find_object_and_turnR(rob)
-        for _ in range(2)
-    ]
+    sensors_all_runs = []
+    phase_durations_all_runs = []
+    for _ in range(1):
+        sensors, phase_durations = find_object_and_turnR(rob)
+        sensors_all_runs.append(sensors)
+        phase_durations_all_runs.append(phase_durations)
 
-    plot_all_sensors(sensor_logs)
+    plot_all_sensors(sensors_all_runs, phase_durations_all_runs)
 
 
