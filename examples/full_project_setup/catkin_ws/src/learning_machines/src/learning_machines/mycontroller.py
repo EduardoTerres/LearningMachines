@@ -20,15 +20,15 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         ir_values = rob.read_irs()
         
         # Front sensors: [BackL, BackR, FrontL, FrontR, FrontC, FrontRR, BackC, FrontLL] look base.py
-        front_left = ir_values[2] if ir_values[2] is not None else 0.0  
-        front_right = ir_values[3] if ir_values[3] is not None else 0.0
-        front_center = ir_values[4] if ir_values[4] is not None else 0.0
-        front_right_right = ir_values[5] if ir_values[5] is not None else 0.0
-        front_left_left = ir_values[7] if ir_values[7] is not None else 0.0
+        front_left = ir_values[2] or 0.0  
+        front_right = ir_values[3] or 0.0
+        front_center = ir_values[4] or 0.0
+        front_right_right = ir_values[5] or 0.0
+        front_left_left = ir_values[7] or 0.0
         
-        back_left = ir_values[0] if ir_values[0] is not None else 0.0
-        back_right = ir_values[1] if ir_values[1] is not None else 0.0
-        back_center = ir_values[6] if ir_values[6] is not None else 0.0
+        back_left = ir_values[0] or 0.0
+        back_right = ir_values[1] or 0.0
+        back_center = ir_values[6] or 0.0
         
         front_sensors = [front_left, front_right, front_center, front_right_right, front_left_left]
         front_max = max(front_sensors)
