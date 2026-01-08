@@ -10,9 +10,9 @@ def find_object_and_turnR(rob: IRobobo) -> None:
     if isinstance(rob, SimulationRobobo):
         rob.play_simulation()
     
-    DETECTION_THRESHOLD = 11.0
-    FORWARD_SPEED = 50
-    TURN_SPEED = 40
+    DETECTION_THRESHOLD = 80.0
+    FORWARD_SPEED = 100
+    TURN_SPEED = 100
     TURN_DURATION = 1000
     
     
@@ -30,7 +30,7 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         back_right = ir_values[1] if ir_values[1] is not None else 0.0
         back_center = ir_values[6] if ir_values[6] is not None else 0.0
         
-        front_sensors = [front_left, front_right, front_center, front_right_right, front_left_left]
+        front_sensors = [front_left, front_right, front_center]
         front_max = max(front_sensors)
         
         back_sensors = [back_left, back_right, back_center]
@@ -41,12 +41,9 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         
         # Check if any front sensor detects an object (we only care about front for turning)
         if front_max > DETECTION_THRESHOLD:
-            if back_max > DETECTION_THRESHOLD:
-                rob.move_blocking(TURN_SPEED*0.5, -TURN_SPEED*0.5, TURN_DURATION + 300)
-            else:
-                rob.move_blocking(TURN_SPEED, -TURN_SPEED, TURN_DURATION)
+            rob.move_blocking(FORWARD_SPEED, -FORWARD_SPEED, 400) #turn right if object is in front
         else:
-            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
+            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
         
         rob.sleep(0.1)
 
@@ -84,8 +81,8 @@ def find_object_and_back(rob: IRobobo) -> None:
         
         if front_max > TOUCH_THRESHOLD:
             rob.move_blocking(-BACKWARD_SPEED, -BACKWARD_SPEED, BACKWARD_DURATION)
-            if back_max > TOUCH_THRESHOLD:
-                rob.move_blocking(-BACKWARD_SPEED*0.5, -BACKWARD_SPEED*0.5, BACKWARD_DURATION) #slower if there is something behind
+            if back_max > TOUCH_THRESHOLD: 
+                rob.move_blocking(int(TURN_SPEED*0.5), int(-TURN_SPEED*0.5), TURN_DURATION + 300)#slower if there is something behind
         else:
             rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
         
