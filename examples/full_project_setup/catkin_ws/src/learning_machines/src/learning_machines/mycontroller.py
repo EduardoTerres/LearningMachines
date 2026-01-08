@@ -35,8 +35,7 @@ def read_and_log_irs(rob: IRobobo, sensors: dict) -> None:
         back_left,
         back_right,
         back_center,
-        sensors
-    )
+    ), sensors
 
 
 def find_object_and_turnR(rob: IRobobo) -> dict:
