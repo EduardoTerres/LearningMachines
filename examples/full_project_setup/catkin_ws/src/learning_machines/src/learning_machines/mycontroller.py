@@ -11,11 +11,10 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         rob.play_simulation()
     
     DETECTION_THRESHOLD = 11.0
-    FORWARD_SPEED = 30
+    FORWARD_SPEED = 50
     TURN_SPEED = 40
-    TURN_DURATION = 800
+    TURN_DURATION = 1000
     
-    print("find object and turn right (using all sensors)")
     
     while True:
         ir_values = rob.read_irs()
@@ -42,15 +41,10 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         
         # Check if any front sensor detects an object (we only care about front for turning)
         if front_max > DETECTION_THRESHOLD:
-            print("Object detected in front! Turning right...")
-            
             if back_max > DETECTION_THRESHOLD:
-                print(f"Object also detected behind (Back:{back_max:.1f}), turning more sharply")
-                rob.move_blocking(TURN_SPEED, -TURN_SPEED, TURN_DURATION + 300)
+                rob.move_blocking(TURN_SPEED*0.5, -TURN_SPEED*0.5, TURN_DURATION + 300)
             else:
                 rob.move_blocking(TURN_SPEED, -TURN_SPEED, TURN_DURATION)
-            
-            print("Turn completed, continuing forward...")
         else:
             rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
         
@@ -71,8 +65,6 @@ def find_object_and_back(rob: IRobobo) -> None:
     BACKWARD_SPEED = 40
     BACKWARD_DURATION = 1500
     
-    print("Starting Example 2: Touch wall and reverse controller")
-    
     while True:
         ir_values = rob.read_irs()
         
@@ -85,14 +77,15 @@ def find_object_and_back(rob: IRobobo) -> None:
         back_center = ir_values[6] if ir_values[6] is not None else 0.0
         
         front_max = max(front_left, front_right, front_center)
+        back_max = max(back_left, back_right, back_center)
         
         print(f"Front - L:{front_left:.1f} C:{front_center:.1f} R:{front_right:.1f} | Max:{front_max:.1f}")
         print(f"Back  - L:{back_left:.1f} C:{back_center:.1f} R:{back_right:.1f}")
         
         if front_max > TOUCH_THRESHOLD:
-            print("Wall touched! Moving backward...")
             rob.move_blocking(-BACKWARD_SPEED, -BACKWARD_SPEED, BACKWARD_DURATION)
-            print("Backward movement completed")
+            if back_max > TOUCH_THRESHOLD:
+                rob.move_blocking(-BACKWARD_SPEED*0.5, -BACKWARD_SPEED*0.5, BACKWARD_DURATION) #slower if there is something behind
         else:
             rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 200)
         
