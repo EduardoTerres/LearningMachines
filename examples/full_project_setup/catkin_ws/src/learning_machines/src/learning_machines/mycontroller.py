@@ -1,5 +1,52 @@
 from robobo_interface import IRobobo, SimulationRobobo
 
+sensors = {
+    "front_left": [],
+    "front_right": [],
+    "front_center": [],
+    "front_right_right": [],
+    "front_left_left": [],
+    "back_left": [],
+    "back_right": [],
+    "back_center": [],
+}
+
+def read_and_log_irs(rob: IRobobo) -> None:
+    """
+    Read the IR sensors and log the values.
+    """
+    ir_values = rob.read_irs()
+
+    front_left = ir_values[2] or 0.0  
+    front_right = ir_values[3] or 0.0
+    front_center = ir_values[4] or 0.0
+    front_right_right = ir_values[5] or 0.0
+    front_left_left = ir_values[7] or 0.0
+    
+    back_left = ir_values[0] or 0.0
+    back_right = ir_values[1] or 0.0
+    back_center = ir_values[6] or 0.0
+
+    # Log sensor values
+    sensors["front_left"].append(front_left)
+    sensors["front_right"].append(front_right)
+    sensors["front_center"].append(front_center)
+    sensors["front_right_right"].append(front_right_right)
+    sensors["front_left_left"].append(front_left_left)
+    sensors["back_left"].append(back_left)
+    sensors["back_right"].append(back_right)
+    sensors["back_center"].append(back_center)
+
+    return (
+        front_left,
+        front_right,
+        front_center,
+        front_right_right,
+        front_left_left,
+        back_left,
+        back_right,
+        back_center,
+    )
 
 def find_object_and_turnR(rob: IRobobo) -> None:
     """
@@ -12,23 +59,21 @@ def find_object_and_turnR(rob: IRobobo) -> None:
     
     DETECTION_THRESHOLD = 80.0
     FORWARD_SPEED = 10
-    TURN_SPEED = 100
-    TURN_DURATION = 1000
-    
-    forward = True
-    while forward:
-        ir_values = rob.read_irs()
+    TURN_SPEED = 5
+
+    # Phase 1: forward
+    while True:
+        (
+            front_left,
+            front_right,
+            front_center,
+            front_right_right,
+            front_left_left,
+            back_left,
+            back_right,
+            back_center,
+        ) = read_and_log_irs(rob)
         
-        # Front sensors: [BackL, BackR, FrontL, FrontR, FrontC, FrontRR, BackC, FrontLL] look base.py
-        front_left = ir_values[2] or 0.0  
-        front_right = ir_values[3] or 0.0
-        front_center = ir_values[4] or 0.0
-        front_right_right = ir_values[5] or 0.0
-        front_left_left = ir_values[7] or 0.0
-        
-        back_left = ir_values[0] or 0.0
-        back_right = ir_values[1] or 0.0
-        back_center = ir_values[6] or 0.0
         
         front_sensors = [front_left, front_right, front_center, front_right_right, front_left_left]
         front_max = max(front_sensors)
@@ -36,18 +81,27 @@ def find_object_and_turnR(rob: IRobobo) -> None:
         back_sensors = [back_left, back_right, back_center]
         back_max = max(back_sensors)
         
-        print(f"Front: {front_left:.1f}, {front_center:.1f}, {front_right:.1f}")
-        
         # Stop if object is detected
         if front_max > DETECTION_THRESHOLD:
-            forward = False
-        
+            break
+
         rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
         rob.talk("Moving forward")
 
-    # Then turn right
-    rob.move_blocking(FORWARD_SPEED, -FORWARD_SPEED, 400)
-    rob.talk("Turning right")
+    # Phase 2: turn right in 20 steps
+    for _ in range(20):
+        read_and_log_irs(rob)
+        rob.move_blocking(-TURN_SPEED, TURN_SPEED, 5)
+        rob.talk("Turning right")
+
+    # Phase 3: Move a bit
+    for _ in range(10):
+        read_and_log_irs(rob)
+        rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
+        rob.talk("Moving forward (after turning right)")
+    
+    if isinstance(rob, SimulationRobobo):
+        rob.stop_simulation()
 
 
 def find_object_and_back(rob: IRobobo) -> None:
