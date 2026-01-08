@@ -59,7 +59,7 @@ def find_object_and_turnR(rob: IRobobo) -> None:
     
     DETECTION_THRESHOLD = 80.0
     FORWARD_SPEED = 10
-    TURN_SPEED = 5
+    TURN_SPEED = 10
 
     # Phase 1: forward
     while True:
@@ -91,11 +91,11 @@ def find_object_and_turnR(rob: IRobobo) -> None:
     # Phase 2: turn right in 20 steps
     for _ in range(20):
         read_and_log_irs(rob)
-        rob.move_blocking(-TURN_SPEED, TURN_SPEED, 5)
+        rob.move_blocking(-TURN_SPEED, TURN_SPEED, 100)
         rob.talk("Turning right")
 
     # Phase 3: Move a bit
-    for _ in range(10):
+    for _ in range(20):
         read_and_log_irs(rob)
         rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
         rob.talk("Moving forward (after turning right)")
