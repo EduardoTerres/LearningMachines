@@ -47,7 +47,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
     if isinstance(rob, SimulationRobobo):
         rob.play_simulation()
     
-    DETECTION_THRESHOLD = 80.0
+    DETECTION_THRESHOLD = 37.0
     FORWARD_SPEED = 10
     TURN_SPEED = 10
 
@@ -86,30 +86,27 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
         ) = read_and_log_irs(rob, sensors)
         
         
-        front_sensors = [front_left, front_right, front_center]
-        front_max = max(front_sensors)
-        
-        back_sensors = [back_left, back_right, back_center]
-        back_max = max(back_sensors)
-        
         # Stop if object is detected
-        if front_max > DETECTION_THRESHOLD:
+        if front_center> DETECTION_THRESHOLD:
             break
 
         rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
-        rob.talk("Moving forward")
 
     # Phase 2: turn right in 20 steps
     for _ in range(phase_durations["phase_2"]):
         _, sensors = read_and_log_irs(rob, sensors)
-        rob.move_blocking(-TURN_SPEED, TURN_SPEED, 100)
+        time_rot=200
+
+        if isinstance(rob, SimulationRobobo):
+            time_rot = 100
+
+        rob.move_blocking(-TURN_SPEED, TURN_SPEED, time_rot)
         rob.talk("Turning right")
 
     # Phase 3: Move a bit
     for _ in range(phase_durations["phase_3"]):
         _, sensors = read_and_log_irs(rob, sensors)
         rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
-        rob.talk("Moving forward (after turning right)")
     
     if isinstance(rob, SimulationRobobo):
         rob.stop_simulation()
