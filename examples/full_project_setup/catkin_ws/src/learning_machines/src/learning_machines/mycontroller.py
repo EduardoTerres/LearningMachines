@@ -99,7 +99,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
 
         if isinstance(rob, SimulationRobobo):
             time_rot = 100
-            TURN_SPEED = -TURN_SPEED
+            TURN_SPEED = 10
 
         rob.move_blocking(-TURN_SPEED, TURN_SPEED, time_rot)
         rob.talk("Turning right")

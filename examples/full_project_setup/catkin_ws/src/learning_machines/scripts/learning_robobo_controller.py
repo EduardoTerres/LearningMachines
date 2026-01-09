@@ -19,7 +19,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"{sys.argv[1]} is not a valid argument.")
 
-    NUM_RUNS = 20
+    NUM_RUNS = 5
     sensors_all_runs = []
     phase_durations_all_runs = []
     for _ in range(NUM_RUNS):
