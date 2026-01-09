@@ -49,7 +49,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
     
     DETECTION_THRESHOLD = 37.0
     FORWARD_SPEED = 10
-    TURN_SPEED = 10
+    TURN_SPEED = -10
 
     sensors = {
         "front_left": [],
@@ -99,6 +99,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
 
         if isinstance(rob, SimulationRobobo):
             time_rot = 100
+            TURN_SPEED = -TURN_SPEED
 
         rob.move_blocking(-TURN_SPEED, TURN_SPEED, time_rot)
         rob.talk("Turning right")
