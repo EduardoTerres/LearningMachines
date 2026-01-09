@@ -47,7 +47,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
     if isinstance(rob, SimulationRobobo):
         rob.play_simulation()
     
-    DETECTION_THRESHOLD = 37.0
+    DETECTION_THRESHOLD = 30.0
     FORWARD_SPEED = 10
     TURN_SPEED = -10
 
@@ -95,7 +95,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
     # Phase 2: turn right in 20 steps
     for _ in range(phase_durations["phase_2"]):
         _, sensors = read_and_log_irs(rob, sensors)
-        time_rot=280
+        time_rot=300
 
         if isinstance(rob, SimulationRobobo):
             time_rot = 100
