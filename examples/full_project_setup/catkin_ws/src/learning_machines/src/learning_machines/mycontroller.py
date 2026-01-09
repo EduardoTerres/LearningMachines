@@ -95,7 +95,7 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
     # Phase 2: turn right in 20 steps
     for _ in range(phase_durations["phase_2"]):
         _, sensors = read_and_log_irs(rob, sensors)
-        time_rot=200
+        time_rot=280
 
         if isinstance(rob, SimulationRobobo):
             time_rot = 100
@@ -105,10 +105,11 @@ def find_object_and_turnR(rob: IRobobo) -> dict:
         rob.talk("Turning right")
 
     # Phase 3: Move a bit
-    for _ in range(phase_durations["phase_3"]):
-        _, sensors = read_and_log_irs(rob, sensors)
-        rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
-    
+    if isinstance(rob, SimulationRobobo):
+        for _ in range(phase_durations["phase_3"]):
+            _, sensors = read_and_log_irs(rob, sensors)
+            rob.move_blocking(FORWARD_SPEED, FORWARD_SPEED, 800)
+        
     if isinstance(rob, SimulationRobobo):
         rob.stop_simulation()
 
