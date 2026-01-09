@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_unit_sensor(sensor_unit_mean: np.array, filename_base: str, phase_durations: dict):
+def plot_unit_sensor(sensor_unit_mean: np.array, filename_base: str, phase_durations: dict, hw_type: str):
     """
     data: dict[str, list[float]] or list[list[float]]
     filename_base: str, e.g., 'output/timeseries'
     """
-    dir = "results/figures"
+    dir = f"results/figures/{hw_type}"
     plt.figure()
     plt.plot(sensor_unit_mean)
 
@@ -26,7 +26,7 @@ def plot_unit_sensor(sensor_unit_mean: np.array, filename_base: str, phase_durat
     plt.savefig(f"../{dir}/{filename_base}.pdf")
     plt.close()
 
-def plot_all_sensors(sensors_all_runs, phase_durations_all_runs):  # list[dict[str, list[float]]]  I get errors in this type
+def plot_all_sensors(sensors_all_runs, phase_durations_all_runs, hw_type: str):  # list[dict[str, list[float]]]  I get errors in this type
     """
     For each sensor name, compute the mean across all runs at each timestep
     and plot using plot_unit_sensor.
@@ -49,5 +49,5 @@ def plot_all_sensors(sensors_all_runs, phase_durations_all_runs):  # list[dict[s
         # Take mean across all runs (axis=0: per timestep)
         mean_across_runs = np.mean(sensor_series_all_runs, axis=0)
         print(f"Plotting sensor, {sensor_name}...")
-        plot_unit_sensor(mean_across_runs, sensor_name, phase_durations_mean)
+        plot_unit_sensor(mean_across_runs, sensor_name, phase_durations_mean, hw_type)
         

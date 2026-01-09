@@ -27,6 +27,7 @@ if __name__ == "__main__":
         sensors_all_runs.append(sensors)
         phase_durations_all_runs.append(phase_durations)
 
+    hw_type = sys.argv[1][2:]
     plot_all_sensors(sensors_all_runs, phase_durations_all_runs)
 
 
