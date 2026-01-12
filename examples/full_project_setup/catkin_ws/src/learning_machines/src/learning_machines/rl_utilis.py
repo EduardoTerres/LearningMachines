@@ -8,9 +8,9 @@ import random
 from typing import Tuple
 import os
 from datetime import datetime
+from robobo_interface import SimulationRobobo
 
-
-
+ # state representation (and normalization)
 def extract_state(rob: IRobobo, sensor_max_values: Optional[List[float]] = None) -> np.ndarray:
 
     ir_values = rob.read_irs()
@@ -76,5 +76,35 @@ def find_sensor_max_values(rob: IRobobo, num_samples: int = 1000,
         
             
             rob.sleep(0.1)
-    
     return max_values
+
+# Action discrete 
+ACTION_TO_SPEEDS = {
+    "FORWARD": (10, 10, 800),           
+    "TURN_LEFT": (-10, 10, 100),       
+    "TURN_RIGHT": (10, -10, 100),       
+    "FORWARD_LEFT": (5, 10, 800),       
+    "FORWARD_RIGHT": (10, 5, 800),      
+    "BACKWARD": (-10, -10, 800),        
+}
+
+# For hardware, turns need different duration, we can think of a more elegant solution
+ACTION_TO_SPEEDS_HARDWARE = {
+    "FORWARD": (10, 10, 800),
+    "TURN_LEFT": (-10, 10, 300),        
+    "TURN_RIGHT": (10, -10, 300),       
+    "FORWARD_LEFT": (5, 10, 800),
+    "FORWARD_RIGHT": (10, 5, 800),
+    "BACKWARD": (-10, -10, 800),
+}
+
+
+def execute_action(rob: IRobobo, action: str) -> None:
+    is_simulation = isinstance(rob, SimulationRobobo)
+    
+    if is_simulation:
+        left_speed, right_speed, duration_ms = ACTION_TO_SPEEDS[action]
+    else:
+        left_speed, right_speed, duration_ms = ACTION_TO_SPEEDS_HARDWARE[action]
+    
+    rob.move_blocking(left_speed, right_speed, duration_ms)
