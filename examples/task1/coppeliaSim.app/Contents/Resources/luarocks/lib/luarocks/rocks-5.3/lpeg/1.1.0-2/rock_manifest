@@ -1,0 +1,12 @@
+rock_manifest = {
+   doc = {
+      ["README.md"] = "d39f724cf242c936b31a1169504d4e42"
+   },
+   lib = {
+      ["lpeg.so"] = "4a6985d016404533f03e26bc1dd0eeff"
+   },
+   ["lpeg-1.1.0-2.rockspec"] = "5d16bb144557d092e11fc4ba20e98ae4",
+   lua = {
+      ["re.lua"] = "dff2ee5b59bfc739752396e6f5e678bd"
+   }
+}
