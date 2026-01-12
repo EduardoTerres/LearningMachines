@@ -79,6 +79,16 @@ def find_sensor_max_values(rob: IRobobo, num_samples: int = 1000,
     return max_values
 
 # Action discrete 
+ACTIONS = [
+    "FORWARD",
+    "TURN_LEFT",
+    "TURN_RIGHT",
+    "FORWARD_LEFT",
+    "FORWARD_RIGHT",
+    "BACKWARD",
+]
+
+NUM_ACTIONS = len(ACTIONS)  # 6
 ACTION_TO_SPEEDS = {
     "FORWARD": (10, 10, 800),           
     "TURN_LEFT": (-10, 10, 100),       
@@ -108,3 +118,57 @@ def execute_action(rob: IRobobo, action: str) -> None:
         left_speed, right_speed, duration_ms = ACTION_TO_SPEEDS_HARDWARE[action]
     
     rob.move_blocking(left_speed, right_speed, duration_ms)
+
+
+# reward function
+# 0.8 is 80% of the max range of the sensors that we normalized before
+def detect_collision(state: np.ndarray, threshold: float = 0.8) -> bool: 
+    return np.max(state) > threshold
+
+
+def compute_reward(state: np.ndarray, action: str, collision_detected: bool, 
+                   distance_traveled: float = 0.0) -> float:
+    reward = 0.0
+    
+    # if moving forward good, maybe to add other actions!
+    if action == "FORWARD":
+        reward += 0.1
+    
+    # more distance more good
+    reward += distance_traveled * 0.01
+
+    # if collision, bad
+    if collision_detected:
+        reward -= 10.0
+    
+    # im commenting this out for now, we can add it back later, scared that the 
+    # sensor will have weird behavior depending on lights etc
+    # min_sensor = np.min(state)  # Closest obstacle
+    # if min_sensor < 0.2:  # Too close! (20% of max range)
+    #     reward -= 0.5
+    
+    return reward
+
+# replay buffer--> read and copyed from github, explain better why we need it
+
+class ReplayBuffer:
+
+    def __init__(self, capacity: int = 10000):
+        self.buffer = deque(maxlen=capacity)
+    
+    def add(self, state: np.ndarray, action: int, reward: float,
+            next_state: np.ndarray, done: bool) -> None:
+        self.buffer.append((state, action, reward, next_state, done))
+    
+    def sample(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        batch = random.sample(self.buffer, min(batch_size, len(self.buffer)))
+        states = np.array([e[0] for e in batch])
+        actions = np.array([e[1] for e in batch])
+        rewards = np.array([e[2] for e in batch])
+        next_states = np.array([e[3] for e in batch])
+        dones = np.array([e[4] for e in batch])
+        
+        return states, actions, rewards, next_states, dones
+    
+    def __len__(self) -> int:
+        return len(self.buffer)
