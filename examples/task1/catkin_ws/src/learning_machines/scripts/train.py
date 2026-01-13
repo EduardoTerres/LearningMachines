@@ -6,14 +6,16 @@ Usage: `python train.py --simulation` or `--hardware`.
 import sys
 import os
 import json
+import numpy as np
 from datetime import datetime
 
 from robobo_interface import SimulationRobobo, HardwareRobobo
 
-from learning_machines import (
-    RoboboIREnv,
-    DQNAgent,
-) 
+# Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
+AGENT = "dqn"
+
+from learning_machines import RoboboIREnv
+from learning_machines.agent import DQNAgent, SACAgent
 
 # Dummy run
 # from learning_machines import test_env
@@ -33,12 +35,41 @@ def main():
 
     env = RoboboIREnv(rob=rob)
 
-    agent = DQNAgent(state_dim=8, num_actions=6, epsilon_start=1.0,
-                     epsilon_end=0.01, epsilon_decay=0.995, batch_size=32,
-                     target_update_frequency=100)
+    # allow CLI override: --agent sac or --agent dqn
+    agent_type = AGENT
+    if '--agent' in sys.argv:
+        i = sys.argv.index('--agent')
+        if i + 1 < len(sys.argv):
+            agent_type = sys.argv[i + 1]
+        else:
+            raise ValueError("Provide agent type after --agent")
+
+    # create a small sample to infer dims
+    sample_obs, _ = env.reset()
+    state_dim = int(np.array(sample_obs).reshape(-1).shape[0])
+
+    if agent_type == 'dqn':
+        agent = DQNAgent(state_dim=state_dim, action_dim=env.action_space.n)
+    elif agent_type == 'sac':
+        # infer action dim and bounds if possible
+        try:
+            a_space = env.action_space
+            if hasattr(a_space, 'shape') and a_space.shape is not None:
+                action_dim = int(a_space.shape[0])
+                low = a_space.low
+                high = a_space.high
+            else:
+                action_dim = 1
+                low, high = -1.0, 1.0
+        except Exception:
+            action_dim, low, high = 1, -1.0, 1.0
+
+        agent = SACAgent(state_dim=state_dim, action_dim=action_dim, action_low=low, action_high=high)
+    else:
+        raise ValueError("Invalid agent type")
 
     num_episodes = 500
-    max_steps = 5
+    max_steps = 20
     stats = []
 
     for ep in range(num_episodes):
@@ -54,8 +85,9 @@ def main():
             if done:
                 print("Episode finished after {} timesteps".format(t+1))
                 break
-        agent.decay_epsilon()
-        stats.append({"episode": ep, "reward": total_reward, "steps": t + 1, "epsilon": agent.epsilon})
+        if hasattr(agent, 'decay_epsilon'):
+            agent.decay_epsilon()
+        stats.append({"episode": ep, "reward": total_reward, "steps": t + 1, "epsilon": getattr(agent, 'epsilon', None)})
         # if (ep + 1) % 10 == 0:
         print(f"Episode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={agent.epsilon:.3f}")
 
@@ -63,7 +95,7 @@ def main():
     results_dir = "/root/results/model"
     os.makedirs(results_dir, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path = os.path.join(results_dir, f"dqn_model_{ts}.h5")
+    model_path = os.path.join(results_dir, f"{agent_type}_model_{ts}.h5")
     agent.save_model(model_path)
     with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
         json.dump(stats, f, indent=2)
@@ -74,14 +106,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# from spinup import td3
-# from examples.task1.catkin_ws.src.learning_machines.src.learning_machines.env import RoboboIREnv
-
-
-# def main():
-#     env_fn = lambda: RoboboIREnv()
-#     td3(env_fn, epochs=50)
-
-
-# if __name__ == '__main__':
-#     main()
