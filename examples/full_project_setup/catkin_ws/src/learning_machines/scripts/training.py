@@ -195,7 +195,7 @@ def validate_agent(agent: DQNAgent, rob, num_episodes: int = 7, max_steps: int =
             'episode': episode,
             'total_reward': total_reward,
             'steps': steps,
-            'collision': collision
+            'collision': bool(collision)
         })
     
     # Restore epsilon
@@ -239,7 +239,7 @@ def main():
     )
     
     # Training parameters
-    num_episodes = 100
+    num_episodes = 2
     max_steps_per_episode = 500
     validation_frequency = 10  # Validate every N episodes
     
