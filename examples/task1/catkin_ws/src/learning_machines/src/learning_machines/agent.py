@@ -1,4 +1,3 @@
-
 import numpy as np
 import random
 from typing import Optional, Tuple
@@ -55,7 +54,13 @@ def create_q_network(state_dim: int = 8, num_actions: int = 6) -> keras.Model:
 
 
 class SACAgent:
-    """Minimal Soft Actor-Critic (SAC) agent."""
+    """Soft Actor-Critic (SAC) agent adapted for discrete action spaces.
+    
+    This implementation uses:
+    - Categorical policy with Gumbel-Softmax for reparameterization
+    - Q-networks that output Q-values for each discrete action
+    - Discrete entropy calculation
+    """
     def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
                  lr=3e-4, gamma=0.99, tau=0.005, alpha=0.2, batch_size=64, replay_size=100000):
         self.state_dim = state_dim
@@ -64,13 +69,9 @@ class SACAgent:
         self.tau = tau
         self.alpha = alpha
         self.batch_size = batch_size
-        self.epsilon = 0.0
+        self.epsilon = 0.0  # For compatibility with training loop
 
         self.replay_buffer = ReplayBuffer(replay_size)
-
-        # action bounds
-        self.low = -1.0 if action_low is None else np.array(action_low)
-        self.high = 1.0 if action_high is None else np.array(action_high)
 
         # networks
         self.actor = self._build_actor()
@@ -85,42 +86,36 @@ class SACAgent:
         self.critic_opt = keras.optimizers.Adam(lr)
 
     def _build_actor(self):
+        """Build actor network that outputs action probabilities (logits)."""
         inp = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(128, activation='gelu')(inp)
-        mu = layers.Dense(self.action_dim)(x)
-        log_std = layers.Dense(self.action_dim)(x)
-        model = keras.Model(inp, [mu, log_std])
+        x = layers.Dense(128, activation='relu')(inp)
+        x = layers.Dense(128, activation='relu')(x)
+        logits = layers.Dense(self.action_dim)(x)  # No activation - raw logits
+        model = keras.Model(inp, logits)
         return model
 
     def _build_critic(self):
+        """Build critic network that outputs Q-values for all actions."""
         s = layers.Input(shape=(self.state_dim,))
-        a = layers.Input(shape=(self.action_dim,))
-        x = layers.Concatenate()([s, a])
-        x = layers.Dense(128, activation='gelu')(x)
-        q = layers.Dense(1)(x)
-        return keras.Model([s, a], q)
-
-    def _sample_action(self, state, deterministic=False):
-        mu, log_std = self.actor(state)
-        log_std = tf.clip_by_value(log_std, -20, 2)
-        std = tf.exp(log_std)
-        if deterministic:
-            z = mu
-        else:
-            eps = tf.random.normal(shape=tf.shape(mu))
-            z = mu + eps * std
-        action = tf.tanh(z)
-        # scale to original bounds if provided
-        return action, z, mu, log_std
+        x = layers.Dense(128, activation='relu')(s)
+        x = layers.Dense(128, activation='relu')(x)
+        q_values = layers.Dense(self.action_dim)(x)  # Q-value for each action
+        return keras.Model(s, q_values)
 
     def select_action(self, state: np.ndarray, training: bool = True):
+        """Select action from categorical distribution."""
         s = state.reshape(1, -1).astype(np.float32)
-        action, _, _, _ = self._sample_action(tf.constant(s), deterministic=not training)
-        action = action.numpy()[0]
-        # scale from [-1,1] to [low,high]
-        if isinstance(self.low, np.ndarray):
-            return self.low + (action + 1.0) * 0.5 * (self.high - self.low)
-        return action
+        logits = self.actor(s, training=False)
+        
+        if training:
+            # Sample from categorical distribution during training
+            probs = tf.nn.softmax(logits)
+            action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
+        else:
+            # Use greedy action during evaluation
+            action_idx = tf.argmax(logits[0]).numpy()
+        
+        return int(action_idx)
 
     def train_step(self) -> Optional[float]:
         if len(self.replay_buffer) < self.batch_size:
@@ -129,41 +124,67 @@ class SACAgent:
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
         states = states.astype(np.float32)
         next_states = next_states.astype(np.float32)
-        actions = actions.astype(np.float32)
+        actions = actions.astype(np.int32)
         rewards = rewards.reshape(-1, 1).astype(np.float32)
         dones = dones.reshape(-1, 1).astype(np.float32)
 
-        # compute target Q
-        next_actions, z, mu, log_std = self._sample_action(tf.constant(next_states))
-        logp = -0.5 * (((z - mu) / (tf.exp(log_std) + 1e-8))**2 + 2*log_std + np.log(2*np.pi))
-        logp = tf.reduce_sum(logp, axis=1, keepdims=True)
-        next_actions = next_actions.numpy()
-        target_q1 = self.target_critic1([next_states, next_actions])
-        target_q2 = self.target_critic2([next_states, next_actions])
-        target_q = tf.minimum(target_q1, target_q2) - self.alpha * logp
-        y = rewards + self.gamma * (1 - dones) * target_q
+        # Compute target Q-values
+        next_logits = self.actor(next_states, training=False)
+        next_probs = tf.nn.softmax(next_logits)
+        next_log_probs = tf.nn.log_softmax(next_logits)
+        
+        # Target Q-values for next state
+        target_q1_next = self.target_critic1(next_states, training=False)
+        target_q2_next = self.target_critic2(next_states, training=False)
+        target_q_next = tf.minimum(target_q1_next, target_q2_next)
+        
+        # Soft Q-value: E[Q] - alpha * H (entropy term)
+        # For discrete: sum over actions of: prob * (Q - alpha * log(prob))
+        next_value = tf.reduce_sum(
+            next_probs * (target_q_next - self.alpha * next_log_probs),
+            axis=1,
+            keepdims=True
+        )
+        
+        # TD target
+        y = rewards + self.gamma * (1 - dones) * next_value
 
-        # update critics
+        # Update critics
         with tf.GradientTape() as tape:
-            q1 = self.critic1([states, actions])
-            q2 = self.critic2([states, actions])
+            q1_all = self.critic1(states, training=True)
+            q2_all = self.critic2(states, training=True)
+            
+            # Get Q-values for taken actions
+            indices = tf.stack([tf.range(self.batch_size), actions], axis=1)
+            q1 = tf.expand_dims(tf.gather_nd(q1_all, indices), 1)
+            q2 = tf.expand_dims(tf.gather_nd(q2_all, indices), 1)
+            
             c_loss = tf.reduce_mean((q1 - y)**2) + tf.reduce_mean((q2 - y)**2)
-        grads = tape.gradient(c_loss, self.critic1.trainable_variables + self.critic2.trainable_variables)
-        self.critic_opt.apply_gradients(zip(grads, self.critic1.trainable_variables + self.critic2.trainable_variables))
+        
+        critic_vars = self.critic1.trainable_variables + self.critic2.trainable_variables
+        grads = tape.gradient(c_loss, critic_vars)
+        self.critic_opt.apply_gradients(zip(grads, critic_vars))
 
-        # update actor
+        # Update actor
         with tf.GradientTape() as tape:
-            act, z, mu, log_std = self._sample_action(tf.constant(states))
-            logp = -0.5 * (((z - mu) / (tf.exp(log_std) + 1e-8))**2 + 2*log_std + np.log(2*np.pi))
-            logp = tf.reduce_sum(logp, axis=1, keepdims=True)
-            q1_pi = self.critic1([states, act])
-            q2_pi = self.critic2([states, act])
-            q_pi = tf.minimum(q1_pi, q2_pi)
-            a_loss = tf.reduce_mean(self.alpha * logp - q_pi)
-        grads = tape.gradient(a_loss, self.actor.trainable_variables)
-        self.actor_opt.apply_gradients(zip(grads, self.actor.trainable_variables))
+            logits = self.actor(states, training=True)
+            probs = tf.nn.softmax(logits)
+            log_probs = tf.nn.log_softmax(logits)
+            
+            # Q-values from current critics
+            q1_all = self.critic1(states, training=False)
+            q2_all = self.critic2(states, training=False)
+            q_all = tf.minimum(q1_all, q2_all)
+            
+            # Policy objective: maximize E[Q - alpha * log(pi)]
+            # Equivalent to minimizing: sum over actions of: prob * (alpha * log(prob) - Q)
+            inside_term = self.alpha * log_probs - q_all
+            a_loss = tf.reduce_mean(tf.reduce_sum(probs * inside_term, axis=1))
+        
+        actor_grads = tape.gradient(a_loss, self.actor.trainable_variables)
+        self.actor_opt.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
 
-        # soft update targets
+        # Soft update target networks
         for var, tgt in zip(self.critic1.variables, self.target_critic1.variables):
             tgt.assign(self.tau * var + (1 - self.tau) * tgt)
         for var, tgt in zip(self.critic2.variables, self.target_critic2.variables):
@@ -172,9 +193,11 @@ class SACAgent:
         return float(c_loss.numpy())
 
     def save_model(self, filepath: str) -> None:
+        """Save actor model."""
         self.actor.save(filepath)
 
     def load_model(self, filepath: str) -> None:
+        """Load actor model."""
         self.actor = keras.models.load_model(filepath)
 
 

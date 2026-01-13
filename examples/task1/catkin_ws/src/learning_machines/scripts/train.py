@@ -12,7 +12,7 @@ from datetime import datetime
 from robobo_interface import SimulationRobobo, HardwareRobobo
 
 # Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
-AGENT = "dqn"
+AGENT = "sac"
 
 from learning_machines import RoboboIREnv
 from learning_machines.agent import DQNAgent, SACAgent
@@ -51,20 +51,7 @@ def main():
     if agent_type == 'dqn':
         agent = DQNAgent(state_dim=state_dim, action_dim=env.action_space.n)
     elif agent_type == 'sac':
-        # infer action dim and bounds if possible
-        try:
-            a_space = env.action_space
-            if hasattr(a_space, 'shape') and a_space.shape is not None:
-                action_dim = int(a_space.shape[0])
-                low = a_space.low
-                high = a_space.high
-            else:
-                action_dim = 1
-                low, high = -1.0, 1.0
-        except Exception:
-            action_dim, low, high = 1, -1.0, 1.0
-
-        agent = SACAgent(state_dim=state_dim, action_dim=action_dim, action_low=low, action_high=high)
+        agent = SACAgent(state_dim=state_dim, action_dim=env.action_space.n)
     else:
         raise ValueError("Invalid agent type")
 
