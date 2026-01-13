@@ -146,18 +146,17 @@ class RoboboIREnv(gym.Env):
             threshold = self._collision_threshold
         return float(np.max(state)) > threshold
 
-    def compute_reward(self, state: np.ndarray, action_idx: int, collision: bool) -> float:
-        """Simple reward: small positive for FORWARD, penalty on collision."""
-        return np.sum(state ** 2) * ( -10.0 if collision else 0.1)
+    # def compute_reward(self, state: np.ndarray, action_idx: int, collision: bool) -> float:
+    #     """Simple reward: small positive for FORWARD, penalty on collision."""
+    #     return np.sum(state ** 2) * ( -10.0 if collision else 0.1)
     
-    def compute_reward_2(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
+    def compute_reward(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
             reward += 0.4
 
         if collision:
-            print(np.max(state) * 10.0)
             reward -= np.max(state) * 10.0
         return float(reward)
 
