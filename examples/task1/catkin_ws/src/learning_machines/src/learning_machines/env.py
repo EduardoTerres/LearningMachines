@@ -16,13 +16,15 @@ ACTIONS = [
 
 NUM_ACTIONS = len(ACTIONS)
 
+MAX_SPEED = 10
+TURN_SPEED = 5
 ACTION_TO_SPEEDS = {
-    "FORWARD": (10, 10, 800),
-    "TURN_LEFT": (-10, 10, 300),
-    "TURN_RIGHT": (10, -10, 300),
-    "FORWARD_LEFT": (5, 10, 800),
-    "FORWARD_RIGHT": (10, 5, 800),
-    "BACKWARD": (-10, -10, 800),
+    "FORWARD": (MAX_SPEED, MAX_SPEED, 800),
+    "TURN_LEFT": (-TURN_SPEED, TURN_SPEED, 300),
+    "TURN_RIGHT": (TURN_SPEED, -TURN_SPEED, 300),
+    "FORWARD_LEFT": (MAX_SPEED / 2, MAX_SPEED, 800),
+    "FORWARD_RIGHT": (MAX_SPEED, MAX_SPEED / 2, 800),
+    "BACKWARD": (-MAX_SPEED, -MAX_SPEED, 800),
 }
 
 def normalize_irs(
@@ -41,11 +43,14 @@ def normalize_irs(
     return normalized
 
 
-def extract_state(rob: IRobobo, sensor_max_values: Optional[List[float]] = None) -> np.ndarray:
+def extract_state(
+        rob: IRobobo,
+        sensor_min_values: Optional[List[float]] = None,
+        sensor_max_values: Optional[List[float]] = None,
+    ) -> np.ndarray:
     """Read IRs from `rob` and normalize into 8-element float32 array in [0,1]."""
     ir_values = rob.read_irs()
-    if sensor_max_values is None:
-        sensor_max_values = [2000.0] * 8
+
     state = []
     for i, val in enumerate(ir_values):
         if val is None:
@@ -73,10 +78,10 @@ def compute_reward(state: np.ndarray, action_idx: int, collision: bool, distance
     if ACTIONS[action_idx] == "FORWARD":
         reward += 0.1
 
-    reward += distance_traveled * 0.01
+    # reward += distance_traveled * 0.01
 
     if collision:
-        reward -= 10.0
+        reward -= np.max(state) * 10.0
     return float(reward)
 
 
@@ -87,6 +92,8 @@ class RoboboIREnv(gym.Env):
     """
 
     metadata = {"render.modes": []}
+    sensor_max_values = [80] * 8
+    sensor_min_values = [0.0] * 8
 
     def __init__(self, rob: IRobobo = None):
         self.rob = rob
@@ -97,16 +104,19 @@ class RoboboIREnv(gym.Env):
     def reset(self, *, seed=None, options=None):
         if isinstance(self.rob, SimulationRobobo):
             self.rob.play_simulation()
-        obs = extract_state(self.rob)
+        obs = extract_state(self.rob, self.sensor_min_values, self.sensor_max_values)
         return obs, {}
 
     def step(self, action):
         execute_action(self.rob, int(action))
         # small wait for sensors to update
-        self.rob.sleep(0.1)
-        next_state = extract_state(self.rob)
+        # self.rob.sleep(0.1)
+        next_state = extract_state(self.rob, self.sensor_min_values, self.sensor_max_values)
 
         collision = detect_collision(next_state, threshold=self._collision_threshold)
+        if collision:
+            print("Collision detected!")
+            
         reward = compute_reward(next_state, int(action), collision)
         terminated = bool(collision)
         truncated = False
@@ -116,8 +126,7 @@ class RoboboIREnv(gym.Env):
         if isinstance(self.rob, SimulationRobobo):
             self.rob.stop_simulation()
 
-
-def test_actions(mode: str = "--simulation", actions: list = None) -> None:
+def test_env(mode: str = "--simulation", actions: list = None) -> None:
     """Run a predefined action sequence and print rewards to terminal.
 
     Usage: import and call `test_actions()` or run this file as a script.
@@ -144,9 +153,3 @@ def test_actions(mode: str = "--simulation", actions: list = None) -> None:
             break
 
     env.close()
-
-
-if __name__ == "__main__":
-    import sys
-    mode = sys.argv[1] if len(sys.argv) > 1 else "--simulation"
-    test_actions(mode=mode)

@@ -9,9 +9,16 @@ import json
 from datetime import datetime
 
 from robobo_interface import SimulationRobobo, HardwareRobobo
-from learning_machines.env import RoboboIREnv
-from learning_machines.agent import DQNAgent
 
+from learning_machines import (
+    RoboboIREnv,
+    DQNAgent,
+) 
+
+# Dummy run
+# from learning_machines import test_env
+# test_env(mode="--simulation")
+# exit(0)
 
 def main():
     if len(sys.argv) < 2:
@@ -20,7 +27,7 @@ def main():
     if mode == "--hardware":
         rob = HardwareRobobo(camera=False)
     elif mode == "--simulation":
-        rob = SimulationRobobo()
+        rob = SimulationRobobo(identifier=1)
     else:
         raise ValueError("Invalid mode")
 
@@ -30,8 +37,8 @@ def main():
                      epsilon_end=0.01, epsilon_decay=0.995, batch_size=32,
                      target_update_frequency=100)
 
-    num_episodes = 100
-    max_steps = 500
+    num_episodes = 500
+    max_steps = 5
     stats = []
 
     for ep in range(num_episodes):
@@ -45,11 +52,12 @@ def main():
             obs = next_obs
             total_reward += reward
             if done:
+                print("Episode finished after {} timesteps".format(t+1))
                 break
         agent.decay_epsilon()
         stats.append({"episode": ep, "reward": total_reward, "steps": t + 1, "epsilon": agent.epsilon})
-        if (ep + 1) % 10 == 0:
-            print(f"Episode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={agent.epsilon:.3f}")
+        # if (ep + 1) % 10 == 0:
+        print(f"Episode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={agent.epsilon:.3f}")
 
     # Save model and stats
     results_dir = "/root/results/model"
@@ -66,14 +74,14 @@ def main():
 
 if __name__ == "__main__":
     main()
-from spinup import td3
-from examples.task1.catkin_ws.src.learning_machines.env import RoboboIREnv
+# from spinup import td3
+# from examples.task1.catkin_ws.src.learning_machines.src.learning_machines.env import RoboboIREnv
 
 
-def main():
-    env_fn = lambda: RoboboIREnv()
-    td3(env_fn, epochs=50)
+# def main():
+#     env_fn = lambda: RoboboIREnv()
+#     td3(env_fn, epochs=50)
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()

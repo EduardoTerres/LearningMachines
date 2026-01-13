@@ -1,11 +1,32 @@
 
 import numpy as np
 import random
-from typing import Optional
+from typing import Optional, Tuple
 from tensorflow import keras
 from tensorflow.keras import layers
+from collections import deque
 
-from learning_machines.rl_utilis import ReplayBuffer
+class ReplayBuffer:
+    """Experience Replay Buffer for DQN Agent."""
+    def __init__(self, capacity: int = 10000):
+        self.buffer = deque(maxlen=capacity)
+    
+    def add(self, state: np.ndarray, action: int, reward: float,
+            next_state: np.ndarray, done: bool) -> None:
+        self.buffer.append((state, action, reward, next_state, done))
+    
+    def sample(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        batch = random.sample(self.buffer, min(batch_size, len(self.buffer)))
+        states = np.array([e[0] for e in batch])
+        actions = np.array([e[1] for e in batch])
+        rewards = np.array([e[2] for e in batch])
+        next_states = np.array([e[3] for e in batch])
+        dones = np.array([e[4] for e in batch])
+        
+        return states, actions, rewards, next_states, dones
+    
+    def __len__(self) -> int:
+        return len(self.buffer)
 
 
 def create_q_network(state_dim: int = 8, num_actions: int = 6) -> keras.Model:
