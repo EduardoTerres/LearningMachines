@@ -12,13 +12,36 @@ MAX_SPEED_HW = 255
 TURN_SPEED_HW = 150
 
 # Sensor values
+HARDWARE_SENSOR_MAX_VALUES = [
+    23000.0,  # BL - Back Left
+    4500.0,   # BR - Back Right
+    200.0,    # FL - Front Left
+    90.0,     # FR - Front Right
+    175.0,    # FC - Front Center
+    1400.0,   # FRR - Front Right Right
+    15000.0,  # BC - Back Center
+    150.0,    # FLL - Front Left Left
+]
+
+# Simulation sensor min and max values
+SIMULATION_SENSOR_MAX_VALUES = [
+    18.0,   # BL - Back Left
+    6.0,    # BR - Back Right
+    90.0,   # FL - Front Left
+    57.0,   # FR - Front Right
+    35.0,   # FC - Front Center
+    65.0,   # FRR - Front Right Right
+    57.0,   # BC - Back Center
+    100.0,  # FLL - Front Left Left
+]
+
 SENSOR_MIN_VALUES = {
-    "simulation": [0] * 8,
-    "hardware": [0] * 8,
+    "simulation": [0.0] * 8,
+    "hardware": [0.0] * 8,
 }
 SENSOR_MAX_VALUES = {
-    "simulation": [200] * 8,
-    "hardware": [1000] * 8,
+    "simulation": SIMULATION_SENSOR_MAX_VALUES,
+    "hardware": HARDWARE_SENSOR_MAX_VALUES,
 }
 
 
@@ -138,7 +161,10 @@ class RoboboIREnv(gym.Env):
         """Execute discrete action by index on the robot (blocking)."""
         action = self.actions[int(action_idx)]
         left_speed, right_speed, duration_ms = self.actions_to_speed[action]
-        self.rob.move_blocking(left_speed, right_speed, duration_ms)
+
+        # Different move functions for sim vs hardware 
+        moving_function = self.rob.move_blocking if self.instance == "simulation" else self.rob.move
+        moving_function(left_speed, right_speed, duration_ms)
 
     def detect_collision(self, state: np.ndarray, threshold: Optional[float] = None) -> bool:
         """Detect collision given normalized state (uses 0-1 scale)."""
@@ -154,7 +180,9 @@ class RoboboIREnv(gym.Env):
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.4
+            reward += 2.0
+        elif self.actions[int(action_idx)] == "BACKWARD":
+            reward -= 0.2
 
         if collision:
             reward -= np.max(state) * 10.0

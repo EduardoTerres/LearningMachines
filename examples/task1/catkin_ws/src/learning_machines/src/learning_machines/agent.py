@@ -60,14 +60,27 @@ class SACAgent:
     - Categorical policy with Gumbel-Softmax for reparameterization
     - Q-networks that output Q-values for each discrete action
     - Discrete entropy calculation
+    
+    Args:
+        state_dim: Dimension of the state space
+        action_dim: Number of discrete actions
+        action_low: Not used (for compatibility)
+        action_high: Not used (for compatibility)
+        lr: Learning rate for actor and critic networks
+        gamma: Discount factor
+        tau: Soft update coefficient for target networks
+        alpha: Entropy coefficient (exploration-exploitation balance).
+               Higher values encourage more exploration through entropy.
+        batch_size: Batch size for training
+        replay_size: Size of replay buffer
     """
     def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
-                 lr=3e-4, gamma=0.99, tau=0.005, alpha=0.2, batch_size=64, replay_size=100000):
+                 lr=3e-4, gamma=0.99, tau=0.005, alpha=0.3, batch_size=64, replay_size=100000):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.gamma = gamma
         self.tau = tau
-        self.alpha = alpha
+        self.alpha = alpha  # Entropy coefficient - can be modified during training
         self.batch_size = batch_size
         self.epsilon = 0.0  # For compatibility with training loop
 
@@ -88,8 +101,8 @@ class SACAgent:
     def _build_actor(self):
         """Build actor network that outputs action probabilities (logits)."""
         inp = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(128, activation='relu')(inp)
-        x = layers.Dense(128, activation='relu')(x)
+        x = layers.Dense(128, activation='gelu')(inp)
+        x = layers.Dense(128, activation='gelu')(x)
         logits = layers.Dense(self.action_dim)(x)  # No activation - raw logits
         model = keras.Model(inp, logits)
         return model
@@ -97,8 +110,8 @@ class SACAgent:
     def _build_critic(self):
         """Build critic network that outputs Q-values for all actions."""
         s = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(128, activation='relu')(s)
-        x = layers.Dense(128, activation='relu')(x)
+        x = layers.Dense(128, activation='gelu')(s)
+        x = layers.Dense(128, activation='gelu')(x)
         q_values = layers.Dense(self.action_dim)(x)  # Q-value for each action
         return keras.Model(s, q_values)
 
