@@ -25,13 +25,13 @@ HARDWARE_SENSOR_MAX_VALUES = [
 
 # Simulation sensor min and max values
 SIMULATION_SENSOR_MAX_VALUES = [
-    18.0,   # BL - Back Left
-    6.0,    # BR - Back Right
-    90.0,   # FL - Front Left
-    57.0,   # FR - Front Right
-    35.0,   # FC - Front Center
-    65.0,   # FRR - Front Right Right
-    57.0,   # BC - Back Center
+    100.0,   # BL - Back Left
+    100.0,    # BR - Back Right
+    100.0,   # FL - Front Left
+    100.0,   # FR - Front Right
+    100.0,   # FC - Front Center
+    100.0,   # FRR - Front Right Right
+    100.0,   # BC - Back Center
     100.0,  # FLL - Front Left Left
 ]
 
@@ -180,12 +180,13 @@ class RoboboIREnv(gym.Env):
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
-            reward += 2.0
+            reward += 0.2
         elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.2
+            reward -= 0.05
 
         if collision:
-            reward -= np.max(state) * 10.0
+            reward -= np.max(state)
+        # reward -= np.sum(state ** 4)
         return float(reward)
 
     @staticmethod
@@ -216,32 +217,3 @@ class RoboboIREnv(gym.Env):
                 break
 
         env.close()
-
-
-def test_env(mode: str = "--simulation", actions: list = None) -> None:
-    """Run a predefined action sequence and print rewards to terminal.
-
-    Usage: import and call `test_actions()` or run this file as a script.
-    """
-    from robobo_interface import SimulationRobobo, HardwareRobobo
-
-    if mode == "--hardware":
-        rob = HardwareRobobo(camera=False)
-    else:
-        rob = SimulationRobobo()
-
-    env = RoboboIREnv(rob=rob)
-    obs, _ = env.reset()
-
-    if actions is None:
-        actions = [0, 3, 4, 1, 2, 5]
-
-    print("Running test action sequence:")
-    for i, a in enumerate(actions):
-        next_obs, reward, done, truncated, info = env.step(int(a))
-        print(f"Step {i+1}: action={env.actions[int(a)]}  reward={reward:.3f}")
-        if done:
-            print("Terminated (collision detected)")
-            break
-
-    env.close()

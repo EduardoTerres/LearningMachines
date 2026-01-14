@@ -11,15 +11,14 @@ from datetime import datetime
 
 from robobo_interface import SimulationRobobo, HardwareRobobo
 
+from learning_machines import RoboboIREnv, DQNAgent, SACAgent
+
 # Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
 AGENT = "sac"
 
-from learning_machines import RoboboIREnv
-from learning_machines.agent import DQNAgent, SACAgent
-
 # Dummy run
 # from learning_machines import test_env
-# test_env(mode="--simulation")
+# RoboboIREnv.test_env(mode="--simulation")
 # exit(0)
 
 def main():

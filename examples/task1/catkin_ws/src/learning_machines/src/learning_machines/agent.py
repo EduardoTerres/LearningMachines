@@ -75,14 +75,19 @@ class SACAgent:
         replay_size: Size of replay buffer
     """
     def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
-                 lr=3e-4, gamma=0.99, tau=0.005, alpha=0.3, batch_size=64, replay_size=100000):
+                 lr=3e-4, gamma=0.99, tau=0.005, alpha=0.1, batch_size=64, replay_size=100000,
+                 epsilon_start=0.5, epsilon_end=0.01, epsilon_decay=0.995):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.gamma = gamma
         self.tau = tau
         self.alpha = alpha  # Entropy coefficient - can be modified during training
         self.batch_size = batch_size
-        self.epsilon = 0.0  # For compatibility with training loop
+        
+        # Exploration parameters
+        self.epsilon = epsilon_start
+        self.epsilon_end = epsilon_end
+        self.epsilon_decay = epsilon_decay
 
         self.replay_buffer = ReplayBuffer(replay_size)
 
@@ -115,15 +120,24 @@ class SACAgent:
         q_values = layers.Dense(self.action_dim)(x)  # Q-value for each action
         return keras.Model(s, q_values)
 
+    def decay_epsilon(self) -> None:
+        if self.epsilon > self.epsilon_end:
+            self.epsilon *= self.epsilon_decay
+            if self.epsilon < self.epsilon_end:
+                self.epsilon = self.epsilon_end
+
     def select_action(self, state: np.ndarray, training: bool = True):
-        """Select action from categorical distribution."""
+        """Select action using epsilon-greedy with categorical distribution."""
         s = state.reshape(1, -1).astype(np.float32)
         logits = self.actor(s, training=False)
         
         if training:
-            # Sample from categorical distribution during training
-            probs = tf.nn.softmax(logits)
-            action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
+            # Epsilon-greedy exploration
+            if random.random() < self.epsilon:
+                action_idx = random.randint(0, self.action_dim - 1)
+            else:
+                # Sample from categorical distribution
+                action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
         else:
             # Use greedy action during evaluation
             action_idx = tf.argmax(logits[0]).numpy()
@@ -202,6 +216,9 @@ class SACAgent:
             tgt.assign(self.tau * var + (1 - self.tau) * tgt)
         for var, tgt in zip(self.critic2.variables, self.target_critic2.variables):
             tgt.assign(self.tau * var + (1 - self.tau) * tgt)
+
+        # Decay epsilon
+        self.decay_epsilon()
 
         return float(c_loss.numpy())
 
