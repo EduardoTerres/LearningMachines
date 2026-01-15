@@ -17,7 +17,7 @@ from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_sta
 AGENT = "sac"
 
 INIT_MODEL_PATH = None
-INIT_MODEL_PATH = "/root/results/sac_15-01-2026_16-19-31/sac_model_final.h5"
+# INIT_MODEL_PATH = "/root/results/sac_15-01-2026_16-19-31/sac_model_final.h5"
 INSTANCE = None
 
 # Dummy run

@@ -198,7 +198,7 @@ class RoboboIREnv(gym.Env):
         if self.actions[int(action_idx)] == "FORWARD":
             reward += 0.2
         elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.2
+            reward -= 0.1
 
         if collision:
             reward -= np.max(state)
