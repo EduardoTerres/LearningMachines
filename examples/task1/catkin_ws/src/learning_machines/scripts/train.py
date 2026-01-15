@@ -141,15 +141,15 @@ def main():
         if hasattr(agent, 'decay_epsilon'):
             agent.decay_epsilon()
         
-        # Store comprehensive statistics
+        # Store comprehensive statistics - CONVERT NUMPY TYPES TO PYTHON TYPES FOR JSON
         episode_stat = {
             "episode": ep,
-            "reward": total_reward,
+            "reward": float(total_reward),
             "steps": t + 1,
-            "epsilon": getattr(agent, 'epsilon', None),
+            "epsilon": float(getattr(agent, 'epsilon', 0)) if getattr(agent, 'epsilon', None) is not None else None,
             "collisions": episode_collisions,
-            "mean_q_value": np.mean(episode_q_values) if episode_q_values else None,
-            "mean_loss": np.mean(episode_losses) if episode_losses else None,
+            "mean_q_value": float(np.mean(episode_q_values)) if episode_q_values else None,
+            "mean_loss": float(np.mean(episode_losses)) if episode_losses else None,
         }
         stats.append(episode_stat)
         
