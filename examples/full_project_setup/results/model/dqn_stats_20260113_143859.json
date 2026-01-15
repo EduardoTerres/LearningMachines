@@ -1,0 +1,16 @@
+[
+  {
+    "episode": 0,
+    "total_reward": -9.9,
+    "steps": 1,
+    "collisions": 1,
+    "epsilon": 0.995
+  },
+  {
+    "episode": 1,
+    "total_reward": -10.0,
+    "steps": 2,
+    "collisions": 1,
+    "epsilon": 0.990025
+  }
+]
