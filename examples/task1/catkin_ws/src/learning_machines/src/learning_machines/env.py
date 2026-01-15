@@ -68,9 +68,9 @@ class RoboboIREnv(gym.Env):
     def __init__(self, rob: IRobobo = None):
         self.rob = rob
         self.instance = "simulation" if isinstance(rob, SimulationRobobo) else "hardware"
-        self._collision_threshold = 0.5 
+        self._collision_threshold = 0.7 
         # Episode length control
-        self._max_steps = 10
+        self._max_steps = 50
         self._step_count = 0
 
         self.sensor_min_values = SENSOR_MIN_VALUES[self.instance]
@@ -128,7 +128,7 @@ class RoboboIREnv(gym.Env):
         reward = reward_function(next_state, int(action), collision)
         # Do NOT terminate on collision; only truncate (time-limit) after max steps.
         self._step_count += 1
-        terminated = False
+        terminated = (False)
         truncated = bool(self._step_count >= self._max_steps)
         return next_state, reward, terminated, truncated, {}
 

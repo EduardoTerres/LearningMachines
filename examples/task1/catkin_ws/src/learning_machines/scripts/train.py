@@ -67,7 +67,7 @@ def main():
     else:
         raise ValueError("Invalid agent type")
 
-    num_episodes = 10
+    num_episodes = 100
     max_steps = 100
     stats = []
 
