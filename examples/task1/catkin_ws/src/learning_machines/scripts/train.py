@@ -67,14 +67,24 @@ def main():
     else:
         raise ValueError("Invalid agent type")
 
-    num_episodes = 10
-    max_steps = 10
+    num_episodes = 1
+    max_steps = 2
     stats = []
 
-    # Setup log file
-    results_dir = "/root/results/dqn_visibility"
+    # Make logging directory
+    ts = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    results_dir = f"/root/results/dqn_{ts}"
     os.makedirs(results_dir, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Save properties file
+    properties = {
+        **agent.get_properties(),
+        "num_episodes": int(num_episodes),
+        "num_steps": int(max_steps)
+    }
+    with open(os.path.join(results_dir, "properties.json"), "w") as f:
+        json.dump(properties, f, indent=2)
+
     log_file_path = os.path.join(results_dir, f"training_log_{ts}.txt")
     log_file = open(log_file_path, 'w')
     log_file.write(f"Training Log - Episode | Step | State | Action Distribution | Probability of Selected Action\n")
@@ -143,16 +153,23 @@ def main():
         
         # Store comprehensive statistics - CONVERT NUMPY TYPES TO PYTHON TYPES FOR JSON
         episode_stat = {
-            "episode": ep,
+            "episode": int(ep),
+            "steps": int(t + 1),
             "reward": float(total_reward),
-            "steps": t + 1,
             "epsilon": float(getattr(agent, 'epsilon', 0)) if getattr(agent, 'epsilon', None) is not None else None,
-            "collisions": episode_collisions,
+            "collisions": int(episode_collisions),
             "mean_q_value": float(np.mean(episode_q_values)) if episode_q_values else None,
             "mean_loss": float(np.mean(episode_losses)) if episode_losses else None,
         }
         stats.append(episode_stat)
-        
+
+        # Save intermediate model
+        if ep % 5 == 0:
+            intermediate_model_path = os.path.join(results_dir, f"{agent_type}_model_ep{ep+1}.h5")
+            agent.save_model(intermediate_model_path)
+            with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
+                json.dump(stats, f, indent=2)
+
         print(f"\nEpisode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={getattr(agent, 'epsilon', 'N/A')} collisions={episode_collisions}")
 
     # Close log file
