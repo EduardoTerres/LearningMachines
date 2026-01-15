@@ -17,7 +17,8 @@ from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_sta
 AGENT = "sac"
 
 INIT_MODEL_PATH = None
-INIT_MODEL_PATH = "/root/results/sac_15-01-2026_15-56-29/sac_model_final.h5"
+INIT_MODEL_PATH = "/root/results/sac_15-01-2026_16-19-31/sac_model_final.h5"
+INSTANCE = None
 
 # Dummy run
 # from learning_machines import test_env
@@ -50,8 +51,10 @@ def main():
     mode = sys.argv[1]
     if mode == "--hardware":
         rob = HardwareRobobo(camera=False)
+        INSTANCE = "hardware"
     elif mode == "--simulation":
         rob = SimulationRobobo(identifier=1)
+        INSTANCE = "simulation"
     else:
         raise ValueError("Invalid mode")
 
@@ -82,20 +85,22 @@ def main():
         agent.load_model(INIT_MODEL_PATH)
         print(f"Initialized training from model: {INIT_MODEL_PATH}")
 
-    num_episodes = 200
+    num_episodes = 150
     max_steps = 10
     stats = []
 
     # Make logging directory
     ts = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    results_dir = f"/root/results/{AGENT}_{ts}"
+    results_dir = f"/root/results/{AGENT}_{INSTANCE}_{ts}"
     os.makedirs(results_dir, exist_ok=True)
 
     # Save properties file
     properties = {
         **agent.get_properties(),
         "num_episodes": int(num_episodes),
-        "num_steps": int(max_steps)
+        "num_steps": int(max_steps),
+        "init_model_path": INIT_MODEL_PATH,
+        "instance": INSTANCE,
     }
     with open(os.path.join(results_dir, "properties.json"), "w") as f:
         json.dump(properties, f, indent=2)

@@ -8,8 +8,8 @@ from typing import List, Optional
 MAX_SPEED_SIM = 10
 TURN_SPEED_SIM = 5
 
-MAX_SPEED_HW = 10
-TURN_SPEED_HW = 5
+MAX_SPEED_HW = 40
+TURN_SPEED_HW = 20
 
 # Sensor values
 # These values were not working properly
@@ -24,14 +24,14 @@ TURN_SPEED_HW = 5
 #     150.0,    # FLL - Front Left Left
 # ]
 HARDWARE_SENSOR_MAX_VALUES = [
-    1000.0,  # BL - Back Left
-    1000.0,   # BR - Back Right
+    300.0,  # BL - Back Left
+    300.0,   # BR - Back Right
     9999999999.0,    # FL - Front Left
     9999999999.0,     # FR - Front Right
-    1000.0,    # FC - Front Center
-    1000.0,   # FRR - Front Right Right
-    1000.0,  # BC - Back Center
-    1000.0,    # FLL - Front Left Left
+    300.0,    # FC - Front Center
+    300.0,   # FRR - Front Right Right
+    300.0,  # BC - Back Center
+    300.0,    # FLL - Front Left Left
 ]
 
 # Simulation sensor min and max values
@@ -196,9 +196,9 @@ class RoboboIREnv(gym.Env):
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.1
+            reward += 0.2
         elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.1
+            reward -= 0.2
 
         if collision:
             reward -= np.max(state)
@@ -209,9 +209,9 @@ class RoboboIREnv(gym.Env):
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.01
+            reward += 0.1
         elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.005
+            reward -= 0.1
         if collision:
             reward -= np.max(state)
         reward -= np.sum(state ** 4)

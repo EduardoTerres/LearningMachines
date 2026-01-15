@@ -140,7 +140,8 @@ class SACAgent:
                 action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
         else:
             # Use greedy action during evaluation
-            action_idx = tf.argmax(logits[0]).numpy()
+            # action_idx = tf.argmax(logits[0]).numpy()
+            action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
         
         return int(action_idx)
 

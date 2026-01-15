@@ -19,10 +19,31 @@ from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
 # Global configuration
 AGENT = "sac"
-timestamp = "15-01-2026_15-56-29"  # Match training timestamp
+timestamp = "15-01-2026_16-19-31"
 MODEL_PATH = f"/root/results/{AGENT}_{timestamp}/{AGENT}_model_final.h5"
 NUM_STEPS = 1000
 RESULTS_DIR = f"/root/results/{AGENT}_hardware"
+
+
+def get_action_probabilities(agent, state, agent_type):
+    """Get action probabilities from agent's policy."""
+    state_reshaped = state.reshape(1, -1).astype(np.float32)
+    
+    if agent_type == 'dqn':
+        q_vals = agent.q_network.predict(state_reshaped, verbose=0)[0]
+        # Convert Q-values to probabilities using softmax
+        exp_q = np.exp(q_vals - np.max(q_vals))
+        probs = exp_q / np.sum(exp_q)
+        return probs, q_vals
+    elif agent_type == 'sac':
+        # Get logits from actor network
+        logits = agent.actor.predict(state_reshaped, verbose=0)[0]
+        # Convert logits to probabilities using softmax
+        exp_logits = np.exp(logits - np.max(logits))
+        probs = exp_logits / np.sum(exp_logits)
+        return probs, logits
+    else:
+        raise ValueError("Invalid agent type")
 
 
 def build_env(mode: str) -> Tuple[RoboboIREnv, str]:
@@ -50,18 +71,52 @@ def load_agent(state_dim: int, action_dim: int):
     return agent
 
 
-def run_rollout(env: RoboboIREnv, agent, steps: int):
+def run_rollout(env: RoboboIREnv, agent, steps: int, log_file):
     obs, _ = env.reset()
     states, rewards, actions = [], [], []
-    for _ in range(steps):
+    
+    for step in range(steps):
         states.append(obs.tolist())
+        
+        # Get action probabilities BEFORE selecting action
+        action_probs, q_vals = get_action_probabilities(agent, obs, AGENT)
+        
+        # Select action
         action = agent.select_action(obs, training=False)
         actions.append(int(action))
+        
+        # Format state as readable string
+        state_str = "[" + ", ".join([f"{s:.3f}" for s in obs]) + "]"
+        
+        # Format action distribution as readable string
+        action_dist_str = " | ".join([f"{env.actions[i]}: {action_probs[i]:.4f}" for i in range(len(env.actions))])
+        
+        # Print to screen
+        print(f"\n--- Step {step+1}/{steps} ---")
+        print(f"State: {state_str}")
+        print(f"Action Distribution: {action_dist_str}")
+        print(f"Selected Action: {env.actions[action]} (probability: {action_probs[action]:.4f})")
+        
+        # Write to log file
+        log_file.write(f"Step {step+1} | ")
+        log_file.write(f"State: {state_str} | ")
+        log_file.write(f"Action Distribution: {action_dist_str} | ")
+        log_file.write(f"Selected: {env.actions[action]} (prob: {action_probs[action]:.4f})\n")
+        log_file.flush()
+        
+        # Execute action
         next_obs, reward, terminated, truncated, _ = env.step(action)
         rewards.append(float(reward))
+        
+        print(f"Reward: {reward:.4f}")
+        log_file.write(f"  -> Reward: {reward:.4f}\n")
+        
         obs = next_obs
         if terminated or truncated:
+            print("Episode terminated, resetting...")
+            log_file.write("  -> Episode terminated, resetting...\n")
             obs, _ = env.reset()
+            
     return np.array(states, dtype=np.float32), np.array(rewards, dtype=np.float32), np.array(actions, dtype=np.int32)
 
 
@@ -117,16 +172,25 @@ def main():
 
     agent = load_agent(state_dim, action_dim)
 
-    states, rewards, actions = run_rollout(env, agent, NUM_STEPS)
-    env.close()
-
+    # Create log file
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    basepath = os.path.join(RESULTS_DIR, f"deploy_{AGENT_TYPE}_{hw_type}_{ts}")
+    basepath = os.path.join(RESULTS_DIR, f"deploy_{AGENT}_{hw_type}_{ts}")
+    log_file_path = f"{basepath}_log.txt"
+    
+    with open(log_file_path, 'w') as log_file:
+        log_file.write(f"Deployment Log - Step | State | Action Distribution | Probability of Selected Action | Reward\n")
+        log_file.write("=" * 100 + "\n")
+        
+        states, rewards, actions = run_rollout(env, agent, NUM_STEPS, log_file)
+    
+    env.close()
 
     save_raw(states, rewards, actions, basepath)
     plot_rewards(rewards, basepath)
     plot_states(states, basepath)
-    print(f"Saved rollout data and plots to {RESULTS_DIR}")
+    
+    print(f"\nSaved rollout data and plots to {RESULTS_DIR}")
+    print(f"Saved log to {log_file_path}")
 
 
 if __name__ == "__main__":

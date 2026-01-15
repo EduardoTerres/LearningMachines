@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # replace localhost with the port you see on the smartphone
-export ROS_MASTER_URI=http://10.89.187.94:11311
+export ROS_MASTER_URI=http://10.195.140.68:11311
 
 # You want your local IP, usually starting with 192.168, following RFC1918
 # Windows powershell:
