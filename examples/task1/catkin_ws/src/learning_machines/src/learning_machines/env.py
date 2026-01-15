@@ -36,14 +36,14 @@ HARDWARE_SENSOR_MAX_VALUES = [
 
 # Simulation sensor min and max values
 SIMULATION_SENSOR_MAX_VALUES = [
-    100.0,   # BL - Back Left
-    100.0,    # BR - Back Right
+    200.0,   # BL - Back Left
+    200.0,    # BR - Back Right
     9999999999.0,   # FL - Front Left
     9999999999.0,   # FR - Front Right
-    100.0,   # FC - Front Center
-    100.0,   # FRR - Front Right Right
-    100.0,   # BC - Back Center
-    100.0,  # FLL - Front Left Left
+    200.0,   # FC - Front Center
+    200.0,   # FRR - Front Right Right
+    200.0,   # BC - Back Center
+    200.0,  # FLL - Front Left Left
 ]
 
 SENSOR_MIN_VALUES = {
@@ -196,9 +196,9 @@ class RoboboIREnv(gym.Env):
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.01
+            reward += 0.1
         elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.0
+            reward -= 0.01
 
         if collision:
             reward -= np.max(state)
@@ -213,8 +213,8 @@ class RoboboIREnv(gym.Env):
         elif self.actions[int(action_idx)] == "BACKWARD":
             reward -= 0.005
         if collision:
-            reward -= np.max(state) * 2.0
-        reward -= np.sum(state ** 4) * 2.0
+            reward -= np.max(state)
+        reward -= np.sum(state ** 4)
         return float(reward)
 
     @staticmethod

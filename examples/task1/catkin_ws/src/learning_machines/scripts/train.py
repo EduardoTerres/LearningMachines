@@ -22,17 +22,24 @@ AGENT = "sac"
 # exit(0)
 
 def get_action_probabilities(agent, state, agent_type):
-    """Get action probabilities - simple version for DQN."""
+    """Get action probabilities from agent's policy."""
+    state_reshaped = state.reshape(1, -1).astype(np.float32)
+    
     if agent_type == 'dqn':
-        state_reshaped = state.reshape(1, -1).astype(np.float32)
         q_vals = agent.q_network.predict(state_reshaped, verbose=0)[0]
         # Convert Q-values to probabilities using softmax
         exp_q = np.exp(q_vals - np.max(q_vals))
         probs = exp_q / np.sum(exp_q)
         return probs, q_vals
+    elif agent_type == 'sac':
+        # Get logits from actor network
+        logits = agent.actor.predict(state_reshaped, verbose=0)[0]
+        # Convert logits to probabilities using softmax
+        exp_logits = np.exp(logits - np.max(logits))
+        probs = exp_logits / np.sum(exp_logits)
+        return probs, logits
     else:
-        # For SAC, return uniform for now (can improve later)
-        return np.ones(agent.action_dim) / agent.action_dim, None
+        raise ValueError("Invalid agent type")
 
 def main():
     if len(sys.argv) < 2:
@@ -176,7 +183,7 @@ def main():
     log_file.close()
 
     # Save model and stats
-    model_path = os.path.join(results_dir, f"{agent_type}_model_{ts}.h5")
+    model_path = os.path.join(results_dir, f"{agent_type}_model_final.h5")
     agent.save_model(model_path)
     with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
         json.dump(stats, f, indent=2)
