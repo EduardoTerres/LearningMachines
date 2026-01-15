@@ -19,9 +19,9 @@ from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
 # Global configuration
 AGENT = "sac"
-timestamp = "15-01-2026_16-19-31"
-MODEL_PATH = f"/root/results/{AGENT}_{timestamp}/{AGENT}_model_final.h5"
-NUM_STEPS = 1000
+timestamp = "15-01-2026_20-35-35"
+MODEL_PATH = f"/root/results/{AGENT}_simulation_{timestamp}/{AGENT}_model_final.h5"
+NUM_STEPS = 400
 RESULTS_DIR = f"/root/results/{AGENT}_hardware"
 
 
@@ -51,7 +51,7 @@ def build_env(mode: str) -> Tuple[RoboboIREnv, str]:
         rob = HardwareRobobo(camera=False)
         hw_type = "hardware"
     else:
-        rob = SimulationRobobo(identifier=1)
+        rob = SimulationRobobo()#identifier=1)
         hw_type = "simulation"
     env = RoboboIREnv(rob=rob)
     return env, hw_type
