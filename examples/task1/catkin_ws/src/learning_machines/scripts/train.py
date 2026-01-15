@@ -54,8 +54,8 @@ def main():
     else:
         raise ValueError("Invalid agent type")
 
-    num_episodes = 500
-    max_steps = 20
+    num_episodes = 100
+    max_steps = 10
     stats = []
 
     for ep in range(num_episodes):
@@ -68,6 +68,7 @@ def main():
             agent.train_step()
             obs = next_obs
             total_reward += reward
+            rob.sleep(0.5)
             if done:
                 print("Episode finished after {} timesteps".format(t+1))
                 break
