@@ -68,7 +68,7 @@ class RoboboIREnv(gym.Env):
     def __init__(self, rob: IRobobo = None):
         self.rob = rob
         self.instance = "simulation" if isinstance(rob, SimulationRobobo) else "hardware"
-        self._collision_threshold = 0.8
+        self._collision_threshold = 0.5
         # Episode length control
         self._max_steps = 10
         self._step_count = 0
@@ -196,13 +196,13 @@ class RoboboIREnv(gym.Env):
         """Simple reward: small positive for FORWARD, penalty on collision."""
         reward = 0.0
         if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.2
+            reward += 0.01
         elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.05
+            reward -= 0.0
 
         if collision:
             reward -= np.max(state)
-        # reward -= np.sum(state ** 4)
+        reward -= np.sum(state ** 4)
         return float(reward)
 
     def compute_reward_hardware(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:

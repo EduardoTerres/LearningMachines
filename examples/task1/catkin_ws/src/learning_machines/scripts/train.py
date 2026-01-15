@@ -11,15 +11,28 @@ from datetime import datetime
 
 from robobo_interface import SimulationRobobo, HardwareRobobo
 
-from learning_machines import RoboboIREnv, DQNAgent, SACAgent
+from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_statistics
 
 # Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
-AGENT = "sac"
+AGENT = "dqn"
 
 # Dummy run
 # from learning_machines import test_env
 # RoboboIREnv.test_env(mode="--simulation")
 # exit(0)
+
+def get_action_probabilities(agent, state, agent_type):
+    """Get action probabilities - simple version for DQN."""
+    if agent_type == 'dqn':
+        state_reshaped = state.reshape(1, -1).astype(np.float32)
+        q_vals = agent.q_network.predict(state_reshaped, verbose=0)[0]
+        # Convert Q-values to probabilities using softmax
+        exp_q = np.exp(q_vals - np.max(q_vals))
+        probs = exp_q / np.sum(exp_q)
+        return probs, q_vals
+    else:
+        # For SAC, return uniform for now (can improve later)
+        return np.ones(agent.action_dim) / agent.action_dim, None
 
 def main():
     if len(sys.argv) < 2:
@@ -58,35 +71,122 @@ def main():
     max_steps = 10
     stats = []
 
+    # Make logging directory
+    ts = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    results_dir = f"/root/results/dqn_{ts}"
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Save properties file
+    properties = {
+        **agent.get_properties(),
+        "num_episodes": int(num_episodes),
+        "num_steps": int(max_steps)
+    }
+    with open(os.path.join(results_dir, "properties.json"), "w") as f:
+        json.dump(properties, f, indent=2)
+
+    log_file_path = os.path.join(results_dir, f"training_log_{ts}.txt")
+    log_file = open(log_file_path, 'w')
+    log_file.write(f"Training Log - Episode | Step | State | Action Distribution | Probability of Selected Action\n")
+    log_file.write("=" * 100 + "\n")
+
     for ep in range(num_episodes):
         obs, _ = env.reset()
         total_reward = 0.0
+        episode_losses = []
+        episode_q_values = []
+        episode_collisions = 0
+        
         for t in range(max_steps):
+            # Get action probabilities BEFORE selecting action
+            action_probs, q_vals = get_action_probabilities(agent, obs, agent_type)
+            
+            # Track Q-values
+            if q_vals is not None:
+                episode_q_values.append(np.mean(q_vals))
+            
+            # Select action (existing code - unchanged)
             a = agent.select_action(obs, training=True)
+            
+            # Format state as readable string
+            state_str = "[" + ", ".join([f"{s:.3f}" for s in obs]) + "]"
+            
+            # Format action distribution as readable string
+            action_dist_str = " | ".join([f"{env.actions[i]}: {action_probs[i]:.4f}" for i in range(len(env.actions))])
+            
+            # Print to screen
+            print(f"\n--- Episode {ep+1} | Step {t+1} ---")
+            print(f"State: {state_str}")
+            print(f"Action Distribution: {action_dist_str}")
+            print(f"Selected Action: {env.actions[a]} (probability: {action_probs[a]:.4f})")
+            
+            # Write to log file
+            log_file.write(f"Episode {ep+1} | Step {t+1} | ")
+            log_file.write(f"State: {state_str} | ")
+            log_file.write(f"Action Distribution: {action_dist_str} | ")
+            log_file.write(f"Selected: {env.actions[a]} (prob: {action_probs[a]:.4f})\n")
+            log_file.flush()
+            
+            # Rest of existing code - UNCHANGED
             next_obs, reward, done, _, _ = env.step(a)
+            
+            # Track collisions
+            if env.detect_collision(next_obs):
+                episode_collisions += 1
+            
             agent.replay_buffer.add(obs, a, reward, next_obs, done)
-            agent.train_step()
+            loss = agent.train_step()
+            
+            # Track loss
+            if loss is not None:
+                episode_losses.append(loss)
+            
             obs = next_obs
             total_reward += reward
             rob.sleep(0.2)
             if done:
                 print("Episode finished after {} timesteps".format(t+1))
                 break
+        
         if hasattr(agent, 'decay_epsilon'):
             agent.decay_epsilon()
-        stats.append({"episode": ep, "reward": total_reward, "steps": t + 1, "epsilon": getattr(agent, 'epsilon', None)})
-        # if (ep + 1) % 10 == 0:
-        print(f"Episode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={agent.epsilon:.3f}")
+        
+        # Store comprehensive statistics - CONVERT NUMPY TYPES TO PYTHON TYPES FOR JSON
+        episode_stat = {
+            "episode": int(ep),
+            "steps": int(t + 1),
+            "reward": float(total_reward),
+            "epsilon": float(getattr(agent, 'epsilon', 0)) if getattr(agent, 'epsilon', None) is not None else None,
+            "collisions": int(episode_collisions),
+            "mean_q_value": float(np.mean(episode_q_values)) if episode_q_values else None,
+            "mean_loss": float(np.mean(episode_losses)) if episode_losses else None,
+        }
+        stats.append(episode_stat)
+
+        # Save intermediate model
+        if ep % 5 == 0:
+            intermediate_model_path = os.path.join(results_dir, f"{agent_type}_model_ep{ep+1}.h5")
+            agent.save_model(intermediate_model_path)
+            with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
+                json.dump(stats, f, indent=2)
+
+        print(f"\nEpisode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={getattr(agent, 'epsilon', 'N/A')} collisions={episode_collisions}")
+
+    # Close log file
+    log_file.close()
 
     # Save model and stats
-    results_dir = "/root/results/model"
-    os.makedirs(results_dir, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_path = os.path.join(results_dir, f"{agent_type}_model_{ts}.h5")
     agent.save_model(model_path)
     with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
         json.dump(stats, f, indent=2)
-    print(f"Saved model to {model_path}")
+    
+    # Create visualizations using the separate function
+    plot_training_statistics(stats, results_dir, ts, agent_type)
+    
+    print(f"\nSaved model to {model_path}")
+    print(f"Saved log to {log_file_path}")
+    print(f"Saved stats to {os.path.join(results_dir, f'stats_{ts}.json')}")
 
     env.close()
 

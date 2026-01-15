@@ -75,7 +75,7 @@ class SACAgent:
         replay_size: Size of replay buffer
     """
     def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
-                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.05, batch_size=64, replay_size=100000,
+                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.001, batch_size=64, replay_size=100000,
                  epsilon_start=0.1, epsilon_end=0.01, epsilon_decay=0.995):
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -230,6 +230,23 @@ class SACAgent:
         """Load actor model."""
         self.actor = keras.models.load_model(filepath)
 
+    def get_properties(self) -> dict:
+        """Return agent hyperparameters for logging."""
+        return {
+            "algorithm": "SAC",
+            "state_dim": int(self.state_dim),
+            "action_dim": int(self.action_dim),
+            "learning_rate": float(self.actor_opt.learning_rate.numpy()),
+            "gamma": float(self.gamma),
+            "tau": float(self.tau),
+            "alpha": float(self.alpha),
+            "batch_size": int(self.batch_size),
+            "replay_buffer_size": int(self.replay_buffer.buffer.maxlen),
+            "epsilon_start": float(self.epsilon),
+            "epsilon_end": float(self.epsilon_end),
+            "epsilon_decay": float(self.epsilon_decay)
+        }
+
 
 class DQNAgent:
     """Deep Q-Network agent (clean reimplementation).
@@ -346,3 +363,19 @@ class DQNAgent:
     def load_model(self, filepath: str) -> None:
         self.q_network = keras.models.load_model(filepath)
         self.update_target_network()
+
+    def get_properties(self) -> dict:
+        """Return agent hyperparameters for logging."""
+        return {
+            "algorithm": "DQN",
+            "state_dim": int(self.state_dim),
+            "action_dim": int(self.action_dim),
+            "learning_rate": float(self.optimizer.learning_rate.numpy()),
+            "gamma": float(self.gamma),
+            "batch_size": int(self.batch_size),
+            "replay_buffer_size": int(self.replay_buffer.buffer.maxlen),
+            "epsilon_start": float(self.epsilon),
+            "epsilon_end": float(self.epsilon_end),
+            "epsilon_decay": float(self.epsilon_decay),
+            "target_update_frequency": int(self.target_update_frequency)
+        }
