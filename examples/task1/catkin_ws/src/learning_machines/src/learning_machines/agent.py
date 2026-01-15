@@ -40,8 +40,8 @@ def create_q_network(state_dim: int = 8, num_actions: int = 6) -> keras.Model:
     """
     model = keras.Sequential([
         layers.Input(shape=(state_dim,)),
-        layers.Dense(128, activation='relu', name='hidden1'), # 64 increase because robot is slow learner
-        layers.Dense(128, activation='relu', name='hidden2'),
+        layers.Dense(64, activation='relu', name='hidden1'), # 64 increase because robot is slow learner
+        layers.Dense(64, activation='relu', name='hidden2'),
         layers.Dense(num_actions, activation='linear', name='q_values')
     ])
     

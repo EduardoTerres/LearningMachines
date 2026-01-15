@@ -1,0 +1,92 @@
+[
+  {
+    "episode": 0,
+    "reward": -996.4999999999994,
+    "steps": 100,
+    "epsilon": 0.8265651079747222,
+    "collisions": 100,
+    "mean_q_value": -0.043388813734054565,
+    "mean_loss": 94.22919525971284
+  },
+  {
+    "episode": 1,
+    "reward": -997.3999999999996,
+    "steps": 100,
+    "epsilon": 0.4982051627146237,
+    "collisions": 100,
+    "mean_q_value": -0.29256218671798706,
+    "mean_loss": 90.7651969909668
+  },
+  {
+    "episode": 2,
+    "reward": -998.8499999999998,
+    "steps": 100,
+    "epsilon": 0.30028896908517405,
+    "collisions": 100,
+    "mean_q_value": -0.5724325180053711,
+    "mean_loss": 86.58632415771484
+  },
+  {
+    "episode": 3,
+    "reward": -998.3499999999995,
+    "steps": 100,
+    "epsilon": 0.18099664897669618,
+    "collisions": 100,
+    "mean_q_value": -1.404671311378479,
+    "mean_loss": 75.8735341644287
+  },
+  {
+    "episode": 4,
+    "reward": -994.5999999999991,
+    "steps": 100,
+    "epsilon": 0.10909420695870241,
+    "collisions": 100,
+    "mean_q_value": -2.3062775135040283,
+    "mean_loss": 55.92991718292237
+  },
+  {
+    "episode": 5,
+    "reward": -998.8499999999999,
+    "steps": 100,
+    "epsilon": 0.06575561514114299,
+    "collisions": 100,
+    "mean_q_value": -4.500131130218506,
+    "mean_loss": 55.523749618530275
+  },
+  {
+    "episode": 6,
+    "reward": -1001.1999999999989,
+    "steps": 100,
+    "epsilon": 0.03963364364733769,
+    "collisions": 100,
+    "mean_q_value": -7.7468085289001465,
+    "mean_loss": 47.15572849273681
+  },
+  {
+    "episode": 7,
+    "reward": -992.7499999999981,
+    "steps": 100,
+    "epsilon": 0.023888845163905856,
+    "collisions": 99,
+    "mean_q_value": -9.451105117797852,
+    "mean_loss": 16.67315725326538
+  },
+  {
+    "episode": 8,
+    "reward": -1004.7499999999982,
+    "steps": 100,
+    "epsilon": 0.014398800381387675,
+    "collisions": 100,
+    "mean_q_value": -15.504996299743652,
+    "mean_loss": 10.557811431884765
+  },
+  {
+    "episode": 9,
+    "reward": -1004.9999999999982,
+    "steps": 100,
+    "epsilon": 0.01,
+    "collisions": 100,
+    "mean_q_value": -13.935637474060059,
+    "mean_loss": 8.683556666374207
+  }
+]
