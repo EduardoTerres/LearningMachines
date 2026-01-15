@@ -4,6 +4,7 @@ import sys
 from robobo_interface import SimulationRobobo, HardwareRobobo
 from learning_machines import find_object_and_turnR, plot_all_sensors
 
+'""hello try""
 
 if __name__ == "__main__":
     # You can do better argument parsing than this!
