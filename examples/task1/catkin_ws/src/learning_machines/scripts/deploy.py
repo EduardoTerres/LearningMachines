@@ -4,12 +4,8 @@
 Usage:
   python deploy.py --simulation
   python deploy.py --hardware
-Optional:
-  --agent sac|dqn (default: sac)
-  --model /path/to/model.h5 (default: /root/results/model/final_model.h5)
-  --steps 1000 (number of action steps to run)
 """
-import argparse
+import sys
 import json
 import os
 from datetime import datetime
@@ -21,18 +17,11 @@ import numpy as np
 from robobo_interface import HardwareRobobo, SimulationRobobo
 from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
-
-DEFAULT_MODEL_PATH = "/root/results/model/sac_model_20260115_094032.h5"
+# Global configuration
+AGENT_TYPE = "dqn"
+MODEL_PATH = "/root/results/model/dqn_model_20260115_094032.h5"
+NUM_STEPS = 1000
 RESULTS_DIR = "/root/results/deployment_figures"
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Deploy trained policy and log rollouts")
-    parser.add_argument("mode", choices=["--simulation", "--hardware"], help="Deployment mode")
-    parser.add_argument("--agent", choices=["sac", "dqn"], default="sac", help="Agent type to load")
-    parser.add_argument("--model", default=DEFAULT_MODEL_PATH, help="Path to saved model (h5)")
-    parser.add_argument("--steps", type=int, default=1000, help="Number of action steps to run")
-    return parser.parse_args()
 
 
 def build_env(mode: str) -> Tuple[RoboboIREnv, str]:
@@ -46,14 +35,14 @@ def build_env(mode: str) -> Tuple[RoboboIREnv, str]:
     return env, hw_type
 
 
-def load_agent(agent_type: str, state_dim: int, action_dim: int, model_path: str):
-    if agent_type == "dqn":
+def load_agent(state_dim: int, action_dim: int):
+    if AGENT_TYPE == "dqn":
         agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
     else:
         agent = SACAgent(state_dim=state_dim, action_dim=action_dim, epsilon_start=0.0, epsilon_end=0.0)
-    agent.load_model(model_path)
+    agent.load_model(MODEL_PATH)
     if hasattr(agent, "epsilon"):
-        agent.epsilon = 0.0  # disable exploration for evaluation
+        agent.epsilon = 0.0
     return agent
 
 
@@ -105,22 +94,30 @@ def plot_states(states: np.ndarray, basepath: str) -> None:
 
 
 def main():
-    args = parse_args()
+    if len(sys.argv) < 2:
+        raise ValueError("Pass --hardware or --simulation")
+    mode = sys.argv[1]
+    if mode == "--hardware":
+        hw_type = "hardware"
+    elif mode == "--simulation":
+        hw_type = "simulation"
+    else:
+        raise ValueError("Invalid mode")
+
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
-    env, hw_type = build_env(args.mode)
-    # infer observation/action dims
+    env, hw_type = build_env(mode)
     sample_obs, _ = env.reset()
     state_dim = int(np.array(sample_obs).reshape(-1).shape[0])
     action_dim = env.action_space.n
 
-    agent = load_agent(args.agent, state_dim, action_dim, args.model)
+    agent = load_agent(state_dim, action_dim)
 
-    states, rewards, actions = run_rollout(env, agent, args.steps)
+    states, rewards, actions = run_rollout(env, agent, NUM_STEPS)
     env.close()
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    basepath = os.path.join(RESULTS_DIR, f"deploy_{args.agent}_{hw_type}_{ts}")
+    basepath = os.path.join(RESULTS_DIR, f"deploy_{AGENT_TYPE}_{hw_type}_{ts}")
 
     save_raw(states, rewards, actions, basepath)
     plot_rewards(rewards, basepath)
