@@ -17,7 +17,7 @@ from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_sta
 AGENT = "sac"
 
 INIT_MODEL_PATH = None
-INIT_MODEL_PATH = "/root/results/sac_15-01-2026_15-30-12/sac_model_final.h5"
+INIT_MODEL_PATH = "/root/results/dqn_15-01-2026_15-56-29/sac_model_final.h5"
 
 # Dummy run
 # from learning_machines import test_env
@@ -88,7 +88,7 @@ def main():
 
     # Make logging directory
     ts = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    results_dir = f"/root/results/dqn_{ts}"
+    results_dir = f"/root/results/{AGENT}_{ts}"
     os.makedirs(results_dir, exist_ok=True)
 
     # Save properties file
