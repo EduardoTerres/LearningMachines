@@ -18,10 +18,11 @@ from robobo_interface import HardwareRobobo, SimulationRobobo
 from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
 # Global configuration
-AGENT_TYPE = "dqn"
-MODEL_PATH = "/root/results/dqn_15-01-2026_14-02-54/dqn_model_15-01-2026_14-02-54.h5"
+AGENT = "sac"
+timestamp = "15-01-2026_15-56-29"  # Match training timestamp
+MODEL_PATH = f"/root/results/{AGENT}_{timestamp}/{AGENT}_model_final.h5"
 NUM_STEPS = 1000
-RESULTS_DIR = "/root/results/dqn_hardware"
+RESULTS_DIR = f"/root/results/{AGENT}_hardware"
 
 
 def build_env(mode: str) -> Tuple[RoboboIREnv, str]:
@@ -36,10 +37,13 @@ def build_env(mode: str) -> Tuple[RoboboIREnv, str]:
 
 
 def load_agent(state_dim: int, action_dim: int):
-    if AGENT_TYPE == "dqn":
+    if AGENT == "dqn":
         agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
-    else:
+    elif AGENT == "sac":
         agent = SACAgent(state_dim=state_dim, action_dim=action_dim, epsilon_start=0.0, epsilon_end=0.0)
+    else:
+        raise ValueError("Invalid agent type")
+
     agent.load_model(MODEL_PATH)
     if hasattr(agent, "epsilon"):
         agent.epsilon = 0.0
