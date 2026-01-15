@@ -164,7 +164,7 @@ def main():
         stats.append(episode_stat)
 
         # Save intermediate model
-        if ep % 5 == 0:
+        if ep % 20 == 0:
             intermediate_model_path = os.path.join(results_dir, f"{agent_type}_model_ep{ep+1}.h5")
             agent.save_model(intermediate_model_path)
             with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
