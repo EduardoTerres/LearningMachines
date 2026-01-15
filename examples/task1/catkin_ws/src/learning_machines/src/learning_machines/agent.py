@@ -75,7 +75,7 @@ class SACAgent:
         replay_size: Size of replay buffer
     """
     def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
-                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.001, batch_size=64, replay_size=100000,
+                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.05, batch_size=64, replay_size=100000,
                  epsilon_start=0.1, epsilon_end=0.01, epsilon_decay=0.995):
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -106,8 +106,8 @@ class SACAgent:
     def _build_actor(self):
         """Build actor network that outputs action probabilities (logits)."""
         inp = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(128, activation='gelu')(inp)
-        x = layers.Dense(128, activation='gelu')(x)
+        x = layers.Dense(64, activation='relu')(inp)
+        x = layers.Dense(64, activation='relu')(x)
         logits = layers.Dense(self.action_dim)(x)  # No activation - raw logits
         model = keras.Model(inp, logits)
         return model
@@ -115,8 +115,8 @@ class SACAgent:
     def _build_critic(self):
         """Build critic network that outputs Q-values for all actions."""
         s = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(128, activation='gelu')(s)
-        x = layers.Dense(128, activation='gelu')(x)
+        x = layers.Dense(64, activation='relu')(s)
+        x = layers.Dense(64, activation='relu')(x)
         q_values = layers.Dense(self.action_dim)(x)  # Q-value for each action
         return keras.Model(s, q_values)
 
@@ -140,7 +140,8 @@ class SACAgent:
                 action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
         else:
             # Use greedy action during evaluation
-            action_idx = tf.argmax(logits[0]).numpy()
+            # action_idx = tf.argmax(logits[0]).numpy()
+            action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
         
         return int(action_idx)
 

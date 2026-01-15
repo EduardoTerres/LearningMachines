@@ -1,4 +1,0 @@
-Training Log - Episode | Step | State | Action Distribution | Probability of Selected Action
-====================================================================================================
-Episode 1 | Step 1 | State: [0.064, 0.092, 0.545, 0.523, 0.134, 0.059, 0.600, 0.059] | Action Distribution: FORWARD: 0.1701 | TURN_LEFT: 0.1703 | TURN_RIGHT: 0.1534 | FORWARD_LEFT: 0.1662 | FORWARD_RIGHT: 0.1590 | BACKWARD: 0.1810 | Selected: BACKWARD (prob: 0.1810)
-Episode 1 | Step 2 | State: [0.064, 0.138, 0.540, 0.523, 0.114, 0.059, 0.601, 0.059] | Action Distribution: FORWARD: 0.1701 | TURN_LEFT: 0.1697 | TURN_RIGHT: 0.1541 | FORWARD_LEFT: 0.1658 | FORWARD_RIGHT: 0.1599 | BACKWARD: 0.1804 | Selected: TURN_RIGHT (prob: 0.1541)

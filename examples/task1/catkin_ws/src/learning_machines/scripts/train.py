@@ -14,7 +14,11 @@ from robobo_interface import SimulationRobobo, HardwareRobobo
 from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_statistics
 
 # Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
-AGENT = "dqn"
+AGENT = "sac"
+
+INIT_MODEL_PATH = None
+# INIT_MODEL_PATH = "/root/results/sac_15-01-2026_16-19-31/sac_model_final.h5"
+INSTANCE = None
 
 # Dummy run
 # from learning_machines import test_env
@@ -22,17 +26,24 @@ AGENT = "dqn"
 # exit(0)
 
 def get_action_probabilities(agent, state, agent_type):
-    """Get action probabilities - simple version for DQN."""
+    """Get action probabilities from agent's policy."""
+    state_reshaped = state.reshape(1, -1).astype(np.float32)
+    
     if agent_type == 'dqn':
-        state_reshaped = state.reshape(1, -1).astype(np.float32)
         q_vals = agent.q_network.predict(state_reshaped, verbose=0)[0]
         # Convert Q-values to probabilities using softmax
         exp_q = np.exp(q_vals - np.max(q_vals))
         probs = exp_q / np.sum(exp_q)
         return probs, q_vals
+    elif agent_type == 'sac':
+        # Get logits from actor network
+        logits = agent.actor.predict(state_reshaped, verbose=0)[0]
+        # Convert logits to probabilities using softmax
+        exp_logits = np.exp(logits - np.max(logits))
+        probs = exp_logits / np.sum(exp_logits)
+        return probs, logits
     else:
-        # For SAC, return uniform for now (can improve later)
-        return np.ones(agent.action_dim) / agent.action_dim, None
+        raise ValueError("Invalid agent type")
 
 def main():
     if len(sys.argv) < 2:
@@ -40,8 +51,10 @@ def main():
     mode = sys.argv[1]
     if mode == "--hardware":
         rob = HardwareRobobo(camera=False)
+        INSTANCE = "hardware"
     elif mode == "--simulation":
         rob = SimulationRobobo(identifier=1)
+        INSTANCE = "simulation"
     else:
         raise ValueError("Invalid mode")
 
@@ -67,20 +80,27 @@ def main():
     else:
         raise ValueError("Invalid agent type")
 
-    num_episodes = 100
+    # Load initial model if provided
+    if INIT_MODEL_PATH:
+        agent.load_model(INIT_MODEL_PATH)
+        print(f"Initialized training from model: {INIT_MODEL_PATH}")
+
+    num_episodes = 150
     max_steps = 10
     stats = []
 
     # Make logging directory
     ts = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    results_dir = f"/root/results/dqn_{ts}"
+    results_dir = f"/root/results/{AGENT}_{INSTANCE}_{ts}"
     os.makedirs(results_dir, exist_ok=True)
 
     # Save properties file
     properties = {
         **agent.get_properties(),
         "num_episodes": int(num_episodes),
-        "num_steps": int(max_steps)
+        "num_steps": int(max_steps),
+        "init_model_path": INIT_MODEL_PATH,
+        "instance": INSTANCE,
     }
     with open(os.path.join(results_dir, "properties.json"), "w") as f:
         json.dump(properties, f, indent=2)
@@ -176,7 +196,7 @@ def main():
     log_file.close()
 
     # Save model and stats
-    model_path = os.path.join(results_dir, f"{agent_type}_model_{ts}.h5")
+    model_path = os.path.join(results_dir, f"{agent_type}_model_final.h5")
     agent.save_model(model_path)
     with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
         json.dump(stats, f, indent=2)
