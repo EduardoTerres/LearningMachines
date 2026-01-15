@@ -38,8 +38,8 @@ HARDWARE_SENSOR_MAX_VALUES = [
 SIMULATION_SENSOR_MAX_VALUES = [
     100.0,   # BL - Back Left
     100.0,    # BR - Back Right
-    100.0,   # FL - Front Left
-    100.0,   # FR - Front Right
+    9999999999.0,   # FL - Front Left
+    9999999999.0,   # FR - Front Right
     100.0,   # FC - Front Center
     100.0,   # FRR - Front Right Right
     100.0,   # BC - Back Center

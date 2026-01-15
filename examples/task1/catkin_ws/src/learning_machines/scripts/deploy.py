@@ -19,9 +19,9 @@ from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
 # Global configuration
 AGENT_TYPE = "dqn"
-MODEL_PATH = "/root/results/model/dqn_model_20260115_094032.h5"
+MODEL_PATH = "/root/results/dqn_15-01-2026_14-02-54/dqn_model_15-01-2026_14-02-54.h5"
 NUM_STEPS = 1000
-RESULTS_DIR = "/root/results/deployment_figures"
+RESULTS_DIR = "/root/results/dqn_hardware"
 
 
 def build_env(mode: str) -> Tuple[RoboboIREnv, str]:

@@ -14,7 +14,7 @@ from robobo_interface import SimulationRobobo, HardwareRobobo
 from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_statistics
 
 # Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
-AGENT = "dqn"
+AGENT = "sac"
 
 # Dummy run
 # from learning_machines import test_env
@@ -67,7 +67,7 @@ def main():
     else:
         raise ValueError("Invalid agent type")
 
-    num_episodes = 100
+    num_episodes = 200
     max_steps = 10
     stats = []
 
