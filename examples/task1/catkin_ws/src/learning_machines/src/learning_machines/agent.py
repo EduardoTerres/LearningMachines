@@ -40,8 +40,8 @@ def create_q_network(state_dim: int = 8, num_actions: int = 6) -> keras.Model:
     """
     model = keras.Sequential([
         layers.Input(shape=(state_dim,)),
-        layers.Dense(64, activation='relu', name='hidden1'),
-        layers.Dense(64, activation='relu', name='hidden2'),
+        layers.Dense(128, activation='relu', name='hidden1'), # 64 increase because robot is slow learner
+        layers.Dense(128, activation='relu', name='hidden2'),
         layers.Dense(num_actions, activation='linear', name='q_values')
     ])
     
@@ -248,14 +248,14 @@ class DQNAgent:
         self,
         state_dim: int,
         action_dim: int,
-        lr: float = 1e-3,
-        gamma: float = 0.99,
-        batch_size: int = 64,
-        replay_size: int = 100000,
-        epsilon_start: float = 1.0,
-        epsilon_end: float = 0.01,
-        epsilon_decay: float = 0.995,
-        target_update_frequency: int = 1000,
+        lr: float = 1e-4, # 1e-3 , decreases because the loss was too high
+        gamma: float = 0.99, # future reward, high-future / low -immediate reward
+        batch_size: int = 64, # size of experince sampled from replay buffer per training set
+        replay_size: int = 100000, # size of replay buffer
+        epsilon_start: float = 1.0, # initial exploration rate probability of random
+        epsilon_end: float = 0.01, # final exploration rate after decay
+        epsilon_decay: float = 0.995, # decay rate of exploration rate maybe to use linear
+        target_update_frequency: int = 500, # how often target netweork uses old weights
     ):
         self.state_dim = state_dim
         self.action_dim = action_dim

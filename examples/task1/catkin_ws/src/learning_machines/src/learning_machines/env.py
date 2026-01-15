@@ -38,8 +38,8 @@ HARDWARE_SENSOR_MAX_VALUES = [
 SIMULATION_SENSOR_MAX_VALUES = [
     100.0,   # BL - Back Left
     100.0,    # BR - Back Right
-    100.0,   # FL - Front Left
-    100.0,   # FR - Front Right
+    1000000000.0,   # FL - Front Left
+    1000000000.0,   # FR - Front Right
     100.0,   # FC - Front Center
     100.0,   # FRR - Front Right Right
     100.0,   # BC - Back Center
@@ -68,7 +68,7 @@ class RoboboIREnv(gym.Env):
     def __init__(self, rob: IRobobo = None):
         self.rob = rob
         self.instance = "simulation" if isinstance(rob, SimulationRobobo) else "hardware"
-        self._collision_threshold = 0.5
+        self._collision_threshold = 0.5 
         # Episode length control
         self._max_steps = 10
         self._step_count = 0
@@ -193,30 +193,39 @@ class RoboboIREnv(gym.Env):
     #     return np.sum(state ** 2) * ( -10.0 if collision else 0.1)
     
     def compute_reward_simulation(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
-        """Simple reward: small positive for FORWARD, penalty on collision."""
+        """Improved reward with strong collision penalty."""
         reward = 0.0
+        
+        # 1. STRONG, FIXED collision penalty (most important!)
+        if collision:
+            reward -= 10.0  # Strong, consistent penalty
+        
+        # Action-based rewards (keep existing)
         if self.actions[int(action_idx)] == "FORWARD":
             reward += 0.2
         elif self.actions[int(action_idx)] == "BACKWARD":
             reward -= 0.05
-
-        if collision:
-            reward -= np.max(state)
-        # reward -= np.sum(state ** 4)
+        
         return float(reward)
 
     def compute_reward_hardware(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
-        """Simple reward: small positive for FORWARD, penalty on collision."""
+        """Improved reward with strong collision penalty."""
         reward = 0.0
+        
+        # 1. STRONG, FIXED collision penalty (same as simulation!)
+        if collision:
+            reward -= 2.0  # Strong, consistent penalty
+        
+        # Action-based rewards
         if self.actions[int(action_idx)] == "FORWARD":
             reward += 0.01
         elif self.actions[int(action_idx)] == "BACKWARD":
             reward -= 0.005
-        if collision:
-            reward -= np.max(state) * 2.0
-        reward -= np.sum(state ** 4) * 2.0
-        return float(reward)
+        
+        # Remove the always-on penalty (line 217) - it's confusing
+        # reward -= np.sum(state ** 4) * 2.0  # REMOVED
 
+        return float(reward)
     @staticmethod
     def test_env(mode: str = "--simulation", actions: list = None) -> None:
         """Run a predefined action sequence and print rewards to terminal.
