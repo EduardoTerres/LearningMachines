@@ -68,7 +68,7 @@ class RoboboIREnv(gym.Env):
     def __init__(self, rob: IRobobo = None):
         self.rob = rob
         self.instance = "simulation" if isinstance(rob, SimulationRobobo) else "hardware"
-        self._collision_threshold = 0.8
+        self._collision_threshold = 0.5
         # Episode length control
         self._max_steps = 10
         self._step_count = 0
