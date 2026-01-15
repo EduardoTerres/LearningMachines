@@ -67,7 +67,7 @@ def main():
     else:
         raise ValueError("Invalid agent type")
 
-    num_episodes = 100
+    num_episodes = 25
     max_steps = 100
     stats = []
 
@@ -154,6 +154,14 @@ def main():
         stats.append(episode_stat)
         
         print(f"\nEpisode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={getattr(agent, 'epsilon', 'N/A')} collisions={episode_collisions}")
+
+        # Save intermediate model and stats every 20 episodes
+        if ep % 20 == 0:
+            intermediate_model_path = os.path.join(results_dir, f"{agent_type}_model_ep{ep+1}.h5")
+            agent.save_model(intermediate_model_path)
+            with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
+                json.dump(stats, f, indent=2)
+            print(f"Saved intermediate model to {intermediate_model_path}")
 
     # Close log file
     log_file.close()
