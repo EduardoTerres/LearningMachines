@@ -1,60 +1,149 @@
 #!/usr/bin/env python3
-from pathlib import Path
-import json
+"""
+Trainer/Evaluator using the gym `RoboboIREnv` and agents `DQNAgent` / `SACAgent`.
+
+Usage:
+  Train: python train.py --simulation --agent sac
+  Eval : python train.py --simulation --eval --agent sac --checkpoint /path/to/model.h5
+"""
 import sys
+import os
+import json
+import numpy as np
+from datetime import datetime
 
-# Running from examples/task1
-MODEL_DIR = Path("../full_project_setup/results/model")
+from robobo_interface import SimulationRobobo, HardwareRobobo
+from learning_machines import RoboboIREnv, DQNAgent, SACAgent
 
-EXPECTED_EPISODES = 100 #to adjust
-MIN_MEAN_REWARD = -1e9  #to adjust once rewards are known
+# Default agent: can be overridden with --agent sac|dqn
+AGENT = "sac"
 
-def fail(msg):
-    print("validation failed", msg)
-    sys.exit(1)
 
-def newest(paths):
-    return max(paths, key=lambda p: p.stat().st_mtime)
+def get_arg(flag, default=None):
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+        raise ValueError(f"Provide value after {flag}")
+    return default
+
+
+def has_flag(flag):
+    return flag in sys.argv
+
 
 def main():
-    if not MODEL_DIR.exists():
-        fail(f"Missing model dir: {MODEL_DIR.resolve()}")
+    if len(sys.argv) < 2:
+        raise ValueError("Pass --hardware or --simulation")
+    mode = sys.argv[1]
 
-    models = list(MODEL_DIR.glob("*_model_*.h5"))
-    stats_files = list(MODEL_DIR.glob("stats_*.json"))
+    # switch from train to eval if needed
+    run_mode = "eval" if (has_flag("--eval") or has_flag("--validate")) else "train"
 
-    if not models:
-        fail("No model file found (*_model_*.h5)")
-    if not stats_files:
-        fail("No stats file found (stats_*.json)")
+    # override defaults from CLI
+    agent_type = get_arg("--agent", AGENT)
+    num_episodes = int(get_arg("--episodes", 100 if run_mode == "train" else 50))
+    max_steps = int(get_arg("--max_steps", 10))
+    seed = get_arg("--seed", None)
+    checkpoint = get_arg("--checkpoint", None)
 
-    model = newest(models)
-    stats_path = newest(stats_files)
+    if seed is not None:
+        seed = int(seed)
+        np.random.seed(seed)
 
-    if model.stat().st_size == 0:
-        fail(f"Model file is empty: {model.name}")
-    if stats_path.stat().st_size == 0:
-        fail(f"Stats file is empty: {stats_path.name}")
+    if mode == "--hardware":
+        rob = HardwareRobobo(camera=False)
+    elif mode == "--simulation":
+        rob = SimulationRobobo(identifier=1)
+    else:
+        raise ValueError("Invalid mode")
 
-    try:
-        stats = json.loads(stats_path.read_text())
-    except Exception as e:
-        fail(f"Could not parse {stats_path.name}: {e}")
+    env = RoboboIREnv(rob=rob)
 
-    if not isinstance(stats, list) or len(stats) == 0:
-        fail(f"{stats_path.name} is not a non-empty list")
+    # infer dims
+    sample_obs, _ = env.reset()
+    state_dim = int(np.array(sample_obs).reshape(-1).shape[0])
 
-    n = len(stats)
-    mean_reward = sum(s.get("reward", 0.0) for s in stats) / n
+    if agent_type == "dqn":
+        agent = DQNAgent(state_dim=state_dim, action_dim=env.action_space.n)
+    elif agent_type == "sac":
+        agent = SACAgent(state_dim=state_dim, action_dim=env.action_space.n)
+    else:
+        raise ValueError("Invalid agent type (use 'dqn' or 'sac')")
 
-    if n < EXPECTED_EPISODES:
-        fail(f"Too few episodes in stats: {n} < {EXPECTED_EPISODES}")
-    if mean_reward < MIN_MEAN_REWARD:
-        fail(f"Mean reward too low: {mean_reward:.3f} < {MIN_MEAN_REWARD}")
+    # load checkpoint for eval (and optionally for resume training)
+    if checkpoint is not None:
+        if not os.path.exists(checkpoint):
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
+        if not hasattr(agent, "load_model"):
+            raise AttributeError("Agent does not implement load_model()")
+        agent.load_model(checkpoint)
+        print(f"Loaded checkpoint: {checkpoint}")
 
-    print("validation succeeded")
-    print(f"Model : {model.name} ({model.stat().st_size} bytes)")
-    print(f"Stats : {stats_path.name} (episodes={n}, mean_reward={mean_reward:.3f})")
+    if run_mode == "eval" and checkpoint is None:
+        raise ValueError("Eval requires --checkpoint /path/to/model")
+
+    # outputs 
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_dir = "/root/results/model" if run_mode == "train" else "/root/results/validation"
+    os.makedirs(out_dir, exist_ok=True)
+
+    stats = []
+
+    for ep in range(num_episodes):
+        obs, _ = env.reset()
+        total_reward = 0.0
+        done = False
+
+        for t in range(max_steps):
+            a = agent.select_action(obs, training=(run_mode == "train"))
+            next_obs, reward, done, _, _info = env.step(a)
+
+            if run_mode == "train":
+                agent.replay_buffer.add(obs, a, reward, next_obs, done)
+                agent.train_step()
+
+            obs = next_obs
+            total_reward += reward
+            rob.sleep(0.2)
+
+            if done:
+                break
+
+        # only decay epsilon in training
+        if run_mode == "train" and hasattr(agent, "decay_epsilon"):
+            agent.decay_epsilon()
+
+        # keeping the same schema as train.py
+        stats.append({
+            "episode": ep,
+            "reward": float(total_reward),
+            "steps": int(t + 1),
+            "epsilon": getattr(agent, "epsilon", None),
+        })
+
+        if run_mode == "train":
+            print(f"[TRAIN] Ep {ep+1}/{num_episodes} reward={total_reward:.2f} eps={getattr(agent,'epsilon',0):.3f}")
+        else:
+            print(f"[EVAL ] Ep {ep+1}/{num_episodes} reward={total_reward:.2f}")
+
+    # Save stats 
+    stats_path = os.path.join(out_dir, f"stats_{ts}.json")
+    with open(stats_path, "w") as f:
+        json.dump(stats, f, indent=2)
+    print(f"Saved stats to {stats_path}")
+
+    # Save model once only
+    model_path = os.path.join(out_dir, f"{agent_type}_model_{ts}.h5")
+    agent.save_model(model_path)
+    if run_mode == "train":
+        print(f"Saved model to {model_path}")
+    else:
+        print(f"Saved eval model copy to {model_path}")
+
+    env.close()
+
 
 if __name__ == "__main__":
     main()
+
