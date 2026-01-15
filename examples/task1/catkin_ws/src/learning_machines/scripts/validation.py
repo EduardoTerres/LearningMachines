@@ -5,6 +5,7 @@ import sys
 
 # Running from examples/task1
 MODEL_DIR = Path("../full_project_setup/results/model")
+MODEL_DIR = "/root/results/sac_15-01-2026_16-19-31/sac_model_final.h5"
 
 EXPECTED_EPISODES = 100 #to adjust
 MIN_MEAN_REWARD = -1e9  #to adjust once rewards are known

@@ -19,9 +19,9 @@ from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
 # Global configuration
 AGENT = "sac"
-timestamp = "15-01-2026_16-19-31"
-MODEL_PATH = f"/root/results/{AGENT}_{timestamp}/{AGENT}_model_final.h5"
-NUM_STEPS = 1000
+timestamp = "15-01-2026_17-41-54"
+MODEL_PATH = f"/root/results/{AGENT}_simulation_{timestamp}/{AGENT}_model_final.h5"
+NUM_STEPS = 400
 RESULTS_DIR = f"/root/results/{AGENT}_hardware"
 
 

@@ -1,0 +1,68 @@
+Deployment Log - Step | State | Action Distribution | Probability of Selected Action | Reward
+====================================================================================================
+Step 1 | State: [0.021, 0.021, 0.000, 0.000, 0.057, 0.020, 0.198, 0.020] | Action Distribution: FORWARD: 0.5901 | TURN_LEFT: 0.1460 | TURN_RIGHT: 0.0889 | FORWARD_LEFT: 0.0730 | FORWARD_RIGHT: 0.0740 | BACKWARD: 0.0281 | Selected: FORWARD (prob: 0.5901)
+  -> Reward: 0.1985
+Step 2 | State: [0.021, 0.021, 0.000, 0.000, 0.077, 0.020, 0.197, 0.020] | Action Distribution: FORWARD: 0.4527 | TURN_LEFT: 0.2055 | TURN_RIGHT: 0.1456 | FORWARD_LEFT: 0.0771 | FORWARD_RIGHT: 0.0650 | BACKWARD: 0.0541 | Selected: TURN_LEFT (prob: 0.2055)
+  -> Reward: -0.0016
+Step 3 | State: [0.021, 0.021, 0.000, 0.000, 0.105, 0.020, 0.197, 0.020] | Action Distribution: FORWARD: 0.2571 | TURN_LEFT: 0.2792 | TURN_RIGHT: 0.2429 | FORWARD_LEFT: 0.0710 | FORWARD_RIGHT: 0.0447 | BACKWARD: 0.1052 | Selected: BACKWARD (prob: 0.1052)
+  -> Reward: -0.1017
+Step 4 | State: [0.021, 0.021, 0.000, 0.000, 0.075, 0.020, 0.201, 0.020] | Action Distribution: FORWARD: 0.4784 | TURN_LEFT: 0.1941 | TURN_RIGHT: 0.1345 | FORWARD_LEFT: 0.0774 | FORWARD_RIGHT: 0.0669 | BACKWARD: 0.0487 | Selected: TURN_RIGHT (prob: 0.1345)
+  -> Reward: -0.0016
+Step 5 | State: [0.021, 0.021, 0.000, 0.000, 0.057, 0.020, 0.198, 0.020] | Action Distribution: FORWARD: 0.5925 | TURN_LEFT: 0.1449 | TURN_RIGHT: 0.0880 | FORWARD_LEFT: 0.0729 | FORWARD_RIGHT: 0.0740 | BACKWARD: 0.0277 | Selected: FORWARD (prob: 0.5925)
+  -> Reward: 0.1985
+Step 6 | State: [0.021, 0.021, 0.000, 0.000, 0.077, 0.020, 0.197, 0.020] | Action Distribution: FORWARD: 0.4556 | TURN_LEFT: 0.2043 | TURN_RIGHT: 0.1443 | FORWARD_LEFT: 0.0771 | FORWARD_RIGHT: 0.0652 | BACKWARD: 0.0535 | Selected: FORWARD (prob: 0.4556)
+  -> Reward: 0.1985
+Step 7 | State: [0.021, 0.021, 0.000, 0.000, 0.114, 0.027, 0.193, 0.030] | Action Distribution: FORWARD: 0.1609 | TURN_LEFT: 0.3014 | TURN_RIGHT: 0.2999 | FORWARD_LEFT: 0.0628 | FORWARD_RIGHT: 0.0314 | BACKWARD: 0.1436 | Selected: TURN_RIGHT (prob: 0.2999)
+  -> Reward: -0.0014
+Step 8 | State: [0.041, 0.021, 0.000, 0.000, 0.067, 0.031, 0.193, 0.049] | Action Distribution: FORWARD: 0.3537 | TURN_LEFT: 0.2453 | TURN_RIGHT: 0.1854 | FORWARD_LEFT: 0.0780 | FORWARD_RIGHT: 0.0565 | BACKWARD: 0.0812 | Selected: TURN_RIGHT (prob: 0.1854)
+  -> Reward: -0.0014
+Step 9 | State: [0.067, 0.021, 0.000, 0.000, 0.019, 0.027, 0.193, 0.082] | Action Distribution: FORWARD: 0.3794 | TURN_LEFT: 0.2719 | TURN_RIGHT: 0.1233 | FORWARD_LEFT: 0.0682 | FORWARD_RIGHT: 0.0707 | BACKWARD: 0.0865 | Selected: FORWARD_LEFT (prob: 0.0682)
+  -> Reward: -0.0017
+Step 10 | State: [0.038, 0.021, 0.000, 0.000, 0.110, 0.040, 0.193, 0.116] | Action Distribution: FORWARD: 0.0117 | TURN_LEFT: 0.2942 | TURN_RIGHT: 0.3184 | FORWARD_LEFT: 0.0106 | FORWARD_RIGHT: 0.0046 | BACKWARD: 0.3605 | Selected: TURN_RIGHT (prob: 0.3184)
+  -> Reward: -0.0023
+  -> Episode terminated, resetting...
+Step 11 | State: [0.059, 0.021, 0.000, 0.000, 0.026, 0.036, 0.193, 0.173] | Action Distribution: FORWARD: 0.0097 | TURN_LEFT: 0.3638 | TURN_RIGHT: 0.1408 | FORWARD_LEFT: 0.0060 | FORWARD_RIGHT: 0.0051 | BACKWARD: 0.4746 | Selected: BACKWARD (prob: 0.4746)
+  -> Reward: -0.1014
+Step 12 | State: [0.045, 0.021, 0.000, 0.000, 0.061, 0.027, 0.193, 0.073] | Action Distribution: FORWARD: 0.2638 | TURN_LEFT: 0.2879 | TURN_RIGHT: 0.2168 | FORWARD_LEFT: 0.0632 | FORWARD_RIGHT: 0.0473 | BACKWARD: 0.1210 | Selected: FORWARD_RIGHT (prob: 0.0473)
+  -> Reward: -0.0036
+Step 13 | State: [0.097, 0.021, 0.000, 0.000, 0.019, 0.035, 0.193, 0.215] | Action Distribution: FORWARD: 0.0006 | TURN_LEFT: 0.2789 | TURN_RIGHT: 0.0493 | FORWARD_LEFT: 0.0008 | FORWARD_RIGHT: 0.0009 | BACKWARD: 0.6695 | Selected: TURN_LEFT (prob: 0.2789)
+  -> Reward: -0.0021
+Step 14 | State: [0.079, 0.022, 0.000, 0.000, 0.019, 0.039, 0.193, 0.159] | Action Distribution: FORWARD: 0.0199 | TURN_LEFT: 0.4211 | TURN_RIGHT: 0.1239 | FORWARD_LEFT: 0.0115 | FORWARD_RIGHT: 0.0088 | BACKWARD: 0.4147 | Selected: TURN_LEFT (prob: 0.4211)
+  -> Reward: -0.0015
+Step 15 | State: [0.054, 0.021, 0.000, 0.000, 0.071, 0.035, 0.193, 0.107] | Action Distribution: FORWARD: 0.0629 | TURN_LEFT: 0.3583 | TURN_RIGHT: 0.2624 | FORWARD_LEFT: 0.0291 | FORWARD_RIGHT: 0.0167 | BACKWARD: 0.2706 | Selected: TURN_RIGHT (prob: 0.2624)
+  -> Reward: -0.0020
+Step 16 | State: [0.064, 0.021, 0.000, 0.000, 0.019, 0.041, 0.193, 0.158] | Action Distribution: FORWARD: 0.0251 | TURN_LEFT: 0.4042 | TURN_RIGHT: 0.1551 | FORWARD_LEFT: 0.0127 | FORWARD_RIGHT: 0.0096 | BACKWARD: 0.3932 | Selected: TURN_LEFT (prob: 0.4042)
+  -> Reward: -0.0015
+Step 17 | State: [0.053, 0.021, 0.000, 0.000, 0.073, 0.035, 0.193, 0.106] | Action Distribution: FORWARD: 0.0612 | TURN_LEFT: 0.3559 | TURN_RIGHT: 0.2668 | FORWARD_LEFT: 0.0288 | FORWARD_RIGHT: 0.0163 | BACKWARD: 0.2710 | Selected: TURN_RIGHT (prob: 0.2668)
+  -> Reward: -0.0020
+Step 18 | State: [0.063, 0.021, 0.000, 0.000, 0.019, 0.041, 0.193, 0.157] | Action Distribution: FORWARD: 0.0255 | TURN_LEFT: 0.4043 | TURN_RIGHT: 0.1558 | FORWARD_LEFT: 0.0128 | FORWARD_RIGHT: 0.0097 | BACKWARD: 0.3918 | Selected: TURN_LEFT (prob: 0.4043)
+  -> Reward: -0.0015
+Step 19 | State: [0.053, 0.021, 0.000, 0.000, 0.071, 0.035, 0.193, 0.106] | Action Distribution: FORWARD: 0.0650 | TURN_LEFT: 0.3569 | TURN_RIGHT: 0.2642 | FORWARD_LEFT: 0.0297 | FORWARD_RIGHT: 0.0171 | BACKWARD: 0.2670 | Selected: BACKWARD (prob: 0.2670)
+  -> Reward: -0.1014
+Step 20 | State: [0.021, 0.021, 0.000, 0.000, 0.057, 0.027, 0.193, 0.043] | Action Distribution: FORWARD: 0.4756 | TURN_LEFT: 0.1936 | TURN_RIGHT: 0.1340 | FORWARD_LEFT: 0.0770 | FORWARD_RIGHT: 0.0687 | BACKWARD: 0.0511 | Selected: FORWARD (prob: 0.4756)
+  -> Reward: 0.1985
+  -> Episode terminated, resetting...
+Step 21 | State: [0.039, 0.021, 0.000, 0.000, 0.070, 0.035, 0.193, 0.105] | Action Distribution: FORWARD: 0.0797 | TURN_LEFT: 0.3351 | TURN_RIGHT: 0.2915 | FORWARD_LEFT: 0.0338 | FORWARD_RIGHT: 0.0192 | BACKWARD: 0.2407 | Selected: TURN_LEFT (prob: 0.3351)
+  -> Reward: -0.0017
+Step 22 | State: [0.035, 0.021, 0.000, 0.000, 0.122, 0.035, 0.193, 0.092] | Action Distribution: FORWARD: 0.0223 | TURN_LEFT: 0.2955 | TURN_RIGHT: 0.3569 | FORWARD_LEFT: 0.0188 | FORWARD_RIGHT: 0.0072 | BACKWARD: 0.2992 | Selected: BACKWARD (prob: 0.2992)
+  -> Reward: -0.1014
+Step 23 | State: [0.021, 0.021, 0.000, 0.000, 0.083, 0.026, 0.193, 0.020] | Action Distribution: FORWARD: 0.3688 | TURN_LEFT: 0.2360 | TURN_RIGHT: 0.1854 | FORWARD_LEFT: 0.0807 | FORWARD_RIGHT: 0.0567 | BACKWARD: 0.0724 | Selected: BACKWARD (prob: 0.0724)
+  -> Reward: -0.1015
+Step 24 | State: [0.021, 0.021, 0.000, 0.000, 0.061, 0.020, 0.198, 0.020] | Action Distribution: FORWARD: 0.5730 | TURN_LEFT: 0.1534 | TURN_RIGHT: 0.0955 | FORWARD_LEFT: 0.0738 | FORWARD_RIGHT: 0.0732 | BACKWARD: 0.0311 | Selected: FORWARD_LEFT (prob: 0.0738)
+  -> Reward: -0.0015
+Step 25 | State: [0.021, 0.021, 0.000, 0.000, 0.115, 0.020, 0.193, 0.020] | Action Distribution: FORWARD: 0.1971 | TURN_LEFT: 0.2978 | TURN_RIGHT: 0.2768 | FORWARD_LEFT: 0.0643 | FORWARD_RIGHT: 0.0365 | BACKWARD: 0.1276 | Selected: TURN_RIGHT (prob: 0.2768)
+  -> Reward: -0.0014
+Step 26 | State: [0.021, 0.021, 0.000, 0.000, 0.084, 0.026, 0.193, 0.020] | Action Distribution: FORWARD: 0.3626 | TURN_LEFT: 0.2383 | TURN_RIGHT: 0.1885 | FORWARD_LEFT: 0.0806 | FORWARD_RIGHT: 0.0561 | BACKWARD: 0.0739 | Selected: TURN_LEFT (prob: 0.2383)
+  -> Reward: -0.0015
+Step 27 | State: [0.021, 0.021, 0.000, 0.000, 0.115, 0.020, 0.193, 0.020] | Action Distribution: FORWARD: 0.1969 | TURN_LEFT: 0.2978 | TURN_RIGHT: 0.2769 | FORWARD_LEFT: 0.0643 | FORWARD_RIGHT: 0.0365 | BACKWARD: 0.1276 | Selected: TURN_RIGHT (prob: 0.2769)
+  -> Reward: -0.0014
+Step 28 | State: [0.021, 0.021, 0.000, 0.000, 0.084, 0.026, 0.193, 0.020] | Action Distribution: FORWARD: 0.3629 | TURN_LEFT: 0.2381 | TURN_RIGHT: 0.1883 | FORWARD_LEFT: 0.0807 | FORWARD_RIGHT: 0.0561 | BACKWARD: 0.0738 | Selected: BACKWARD (prob: 0.0738)
+  -> Reward: -0.1016
+Step 29 | State: [0.021, 0.021, 0.000, 0.000, 0.057, 0.020, 0.198, 0.020] | Action Distribution: FORWARD: 0.5937 | TURN_LEFT: 0.1444 | TURN_RIGHT: 0.0875 | FORWARD_LEFT: 0.0729 | FORWARD_RIGHT: 0.0741 | BACKWARD: 0.0274 | Selected: FORWARD (prob: 0.5937)
+  -> Reward: 0.1985
+Step 30 | State: [0.021, 0.021, 0.000, 0.000, 0.076, 0.020, 0.197, 0.020] | Action Distribution: FORWARD: 0.4590 | TURN_LEFT: 0.2028 | TURN_RIGHT: 0.1428 | FORWARD_LEFT: 0.0771 | FORWARD_RIGHT: 0.0655 | BACKWARD: 0.0528 | Selected: TURN_RIGHT (prob: 0.1428)
+  -> Reward: -0.0015
+  -> Episode terminated, resetting...
+Step 31 | State: [0.021, 0.021, 0.000, 0.000, 0.048, 0.026, 0.195, 0.020] | Action Distribution: FORWARD: 0.6054 | TURN_LEFT: 0.1376 | TURN_RIGHT: 0.0831 | FORWARD_LEFT: 0.0760 | FORWARD_RIGHT: 0.0730 | BACKWARD: 0.0249 | Selected: FORWARD (prob: 0.6054)
+  -> Reward: 0.1986
+Step 32 | State: [0.021, 0.021, 0.000, 0.000, 0.067, 0.034, 0.193, 0.048] | Action Distribution: FORWARD: 0.3589 | TURN_LEFT: 0.2361 | TURN_RIGHT: 0.1884 | FORWARD_LEFT: 0.0818 | FORWARD_RIGHT: 0.0578 | BACKWARD: 0.0770 | Selected: FORWARD (prob: 0.3589)
