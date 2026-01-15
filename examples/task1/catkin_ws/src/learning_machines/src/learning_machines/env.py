@@ -202,7 +202,7 @@ class RoboboIREnv(gym.Env):
 
         if collision:
             reward -= np.max(state)
-        # reward -= np.sum(state ** 4)
+        reward -= np.sum(state ** 4)
         return float(reward)
 
     def compute_reward_hardware(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
