@@ -68,7 +68,7 @@ def main():
             agent.train_step()
             obs = next_obs
             total_reward += reward
-            rob.sleep(0.5)
+            rob.sleep(0.2)
             if done:
                 print("Episode finished after {} timesteps".format(t+1))
                 break

@@ -75,7 +75,7 @@ class SACAgent:
         replay_size: Size of replay buffer
     """
     def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
-                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.5, batch_size=64, replay_size=100000,
+                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.05, batch_size=64, replay_size=100000,
                  epsilon_start=0.1, epsilon_end=0.01, epsilon_decay=0.995):
         self.state_dim = state_dim
         self.action_dim = action_dim

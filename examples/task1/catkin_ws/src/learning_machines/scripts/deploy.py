@@ -22,7 +22,7 @@ from robobo_interface import HardwareRobobo, SimulationRobobo
 from learning_machines import RoboboIREnv, SACAgent, DQNAgent
 
 
-DEFAULT_MODEL_PATH = "/root/results/model/final_model.h5"
+DEFAULT_MODEL_PATH = "/root/results/model/sac_model_20260115_094032.h5"
 RESULTS_DIR = "/root/results/deployment_figures"
 
 
