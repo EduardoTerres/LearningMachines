@@ -16,6 +16,9 @@ from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_sta
 # Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
 AGENT = "sac"
 
+INIT_MODEL_PATH = None
+INIT_MODEL_PATH = "/root/results/sac_15-01-2026_15-30-12/sac_model_final.h5"
+
 # Dummy run
 # from learning_machines import test_env
 # RoboboIREnv.test_env(mode="--simulation")
@@ -73,6 +76,11 @@ def main():
         agent = SACAgent(state_dim=state_dim, action_dim=env.action_space.n)
     else:
         raise ValueError("Invalid agent type")
+
+    # Load initial model if provided
+    if INIT_MODEL_PATH:
+        agent.load_model(INIT_MODEL_PATH)
+        print(f"Initialized training from model: {INIT_MODEL_PATH}")
 
     num_episodes = 200
     max_steps = 10
