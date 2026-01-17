@@ -1,8 +1,14 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+import cv2
 from robobo_interface import IRobobo, SimulationRobobo
-from typing import List, Optional
+from typing import List, Optional, Tuple
+try:
+    from transformers import pipeline
+    HAS_TRANSFORMERS = True
+except ImportError:
+    HAS_TRANSFORMERS = False
 
 # Speeds
 MAX_SPEED_SIM = 10
@@ -13,21 +19,11 @@ TURN_SPEED_HW = 20
 
 # Sensor values
 # These values were not working properly
-# HARDWARE_SENSOR_MAX_VALUES = [
-#     23000.0,  # BL - Back Left
-#     4500.0,   # BR - Back Right
-#     200.0,    # FL - Front Left
-#     90.0,     # FR - Front Right
-#     175.0,    # FC - Front Center
-#     1400.0,   # FRR - Front Right Right
-#     15000.0,  # BC - Back Center
-#     150.0,    # FLL - Front Left Left
-# ]
 HARDWARE_SENSOR_MAX_VALUES = [
     300.0,  # BL - Back Left
     300.0,   # BR - Back Right
-    9999999999.0,    # FL - Front Left
-    9999999999.0,     # FR - Front Right
+    300.0,    # FL - Front Left
+    300.0,     # FR - Front Right
     300.0,    # FC - Front Center
     300.0,   # FRR - Front Right Right
     300.0,  # BC - Back Center
@@ -38,8 +34,8 @@ HARDWARE_SENSOR_MAX_VALUES = [
 SIMULATION_SENSOR_MAX_VALUES = [
     300.0,   # BL - Back Left
     300.0,    # BR - Back Right
-    9999999999.0,   # FL - Front Left
-    9999999999.0,   # FR - Front Right
+    300.0,   # FL - Front Left
+    300.0,   # FR - Front Right
     300.0,   # FC - Front Center
     300.0,   # FRR - Front Right Right
     300.0,   # BC - Back Center
@@ -76,45 +72,45 @@ class RoboboIREnv(gym.Env):
         self.sensor_min_values = SENSOR_MIN_VALUES[self.instance]
         self.sensor_max_values = SENSOR_MAX_VALUES[self.instance]
 
-        self.actions = [
-            "FORWARD",
-            "TURN_LEFT",
-            "TURN_RIGHT",
-            "FORWARD_LEFT",
-            "FORWARD_RIGHT",
-            "BACKWARD",
-        ]
-
-        self.num_actions = len(self.actions)
-
-        max_speed = MAX_SPEED_SIM if isinstance(self.rob, SimulationRobobo) else MAX_SPEED_HW
-        turn_speed = TURN_SPEED_SIM if isinstance(self.rob, SimulationRobobo) else TURN_SPEED_HW
-
-        self.actions_to_speed = {
-            "FORWARD": (max_speed, max_speed, 800),
-            "TURN_LEFT": (-turn_speed, turn_speed, 300),
-            "TURN_RIGHT": (turn_speed, -turn_speed, 300),
-            "FORWARD_LEFT": (int(max_speed // 2), max_speed, 800),
-            "FORWARD_RIGHT": (max_speed, int(max_speed // 2), 800),
-            "BACKWARD": (-max_speed, -max_speed, 800),
-        }
-
-        self.action_space = spaces.Discrete(self.num_actions)
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(8,), dtype=np.float32)
+        # Continuous action space: [left_wheel_speed, right_wheel_speed]
+        # Normalized to [-1, 1], will be scaled to actual speeds
+        self.max_speed = MAX_SPEED_SIM if isinstance(self.rob, SimulationRobobo) else MAX_SPEED_HW
+        self.action_duration = 800  # milliseconds
+        
+        # Action space: continuous wheel speeds
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        
+        # Observation space: 8 IR sensors + 1 green detection + 1 ViT food score
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(10,), dtype=np.float32)
+        
+        # Food collection tracking
+        self.food_collected_this_episode = 0
+        
+        # Vision transformer for food detection (lazy loaded)
+        self.food_detector = None
 
     def reset(self, *, seed=None, options=None):
         if isinstance(self.rob, SimulationRobobo):
             self.rob.play_simulation()
-        # reset step counter
+        # reset step counter and food counter
         self._step_count = 0
+        self.food_collected_this_episode = 0
         obs = self.extract_state()
         return obs, {}
 
     def step(self, action):
-        self.execute_action(int(action))
-        # small wait for sensors to update
-        # self.rob.sleep(0.1)
+        # Check food before action
+        food_before = self.get_food_count()
+        
+        self.execute_action(action)
         next_state = self.extract_state()
+        
+        # Check if food was collected
+        food_after = self.get_food_count()
+        food_collected = food_before - food_after
+        if food_collected > 0:
+            self.food_collected_this_episode += food_collected
+            print(f"Food collected! Total this episode: {self.food_collected_this_episode}")
 
         collision = self.detect_collision(next_state)
         if collision:
@@ -125,12 +121,13 @@ class RoboboIREnv(gym.Env):
             if self.instance == "simulation"
             else self.compute_reward_hardware
         )
-        reward = reward_function(next_state, int(action), collision)
+        reward = reward_function(next_state, action, collision, food_collected)
+        
         # Do NOT terminate on collision; only truncate (time-limit) after max steps.
         self._step_count += 1
         terminated = False
         truncated = bool(self._step_count >= self._max_steps)
-        return next_state, reward, terminated, truncated, {}
+        return next_state, reward, terminated, truncated, {"food_collected": food_collected}
 
     def close(self):
         if isinstance(self.rob, SimulationRobobo):
@@ -156,12 +153,72 @@ class RoboboIREnv(gym.Env):
                 normalized.append(min(max(norm_val, 0.0), 1.0))
         return normalized
 
-    def extract_state(
-        self,
-    ) -> np.ndarray:
-        """Read IRs from `rob` and normalize into 8-element float32 array in [0,1]."""
+    def detect_green_in_image(self, image: np.ndarray) -> float:
+        """Detect green color in image and return normalized value [0,1].
+        Higher value means more green (food) detected."""
+        if image is None or image.size == 0:
+            return 0.0
+        
+        # Convert BGR to HSV
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+        # Define range for green color in HSV
+        # Green hue is around 60 degrees (in OpenCV: 0-179 scale)
+        lower_green = np.array([40, 40, 40])
+        upper_green = np.array([80, 255, 255])
+        
+        # Create mask for green pixels
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+        
+        # Calculate percentage of green pixels
+        green_ratio = np.sum(mask > 0) / mask.size
+        
+        return float(np.clip(green_ratio * 5.0, 0.0, 1.0))  # Scale up and clip
+
+    def detect_food_with_vit(self, image: np.ndarray) -> float:
+        """Detect food in image using Vision Transformer (ViT) model.
+        
+        Uses a pre-trained ViT model to classify whether the image contains
+        edible/food items. Returns normalized probability [0,1].
+        
+        Note: This requires transformers library. Falls back to 0.0 if unavailable.
+        """
+        if not HAS_TRANSFORMERS or image is None or image.size == 0:
+            return 0.0
+        
+        try:
+            # Lazy load the food detector on first call
+            if self.food_detector is None:
+                # Using zero-shot classification with "food" vs "not food"
+                # This is lightweight and doesn't require fine-tuning
+                self.food_detector = pipeline(
+                    "zero-shot-image-classification",
+                    model="openai/clip-vit-base-patch32"
+                )
+            
+            # Prepare image for CLIP (convert BGR to RGB)
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            
+            # Candidate labels for classification
+            candidate_labels = ["green block", "red block", "obstacle", "wall"]
+            
+            # Run zero-shot classification
+            results = self.food_detector(image_rgb, candidate_labels)
+            
+            # Extract probability for food-related labels
+            food_score = 0.0
+            for result in results:
+                if result["label"] in ["green block", "red block"]:
+                    food_score = max(food_score, result["score"])
+            
+            return float(np.clip(food_score, 0.0, 1.0))
+        except Exception as e:
+            # Silently fail and return 0 if model loading or inference fails
+            return 0.0
+
+    def extract_state(self) -> np.ndarray:
+        """Read IRs and camera, return 10-element state: 8 IRs + green detection + ViT food score."""
         ir_values = self.rob.read_irs()
-        # print(f"IR: {ir_values}")
 
         state = []
         for i, val in enumerate(ir_values):
@@ -169,52 +226,101 @@ class RoboboIREnv(gym.Env):
                 state.append(0.0)
             else:
                 state.append(self.normalize_irs([val], [0.0], [self.sensor_max_values[i]])[0])
-
-        # print(f"IR norm: {state}")
+        
+        # Add green detection from camera
+        try:
+            image = self.rob.read_image_front()
+            green_value = self.detect_green_in_image(image)
+            # Add ViT-based food detection
+            vit_food_score = self.detect_food_with_vit(image)
+        except:
+            green_value = 0.0
+            vit_food_score = 0.0
+        
+        state.append(green_value)
+        state.append(vit_food_score)
         return np.array(state, dtype=np.float32)
 
-    def execute_action(self, action_idx: int) -> None:
-        """Execute discrete action by index on the robot (blocking)."""
-        action = self.actions[int(action_idx)]
-        left_speed, right_speed, duration_ms = self.actions_to_speed[action]
-
-        # Different move functions for sim vs hardware 
-        moving_function = self.rob.move_blocking # if self.instance == "simulation" else self.rob.move
-        moving_function(left_speed, right_speed, duration_ms)
+    def execute_action(self, action: np.ndarray) -> None:
+        """Execute continuous action (normalized wheel speeds) on the robot.
+        action: [left_speed, right_speed] in range [-1, 1]
+        """
+        # Scale normalized actions to actual speed range
+        left_speed = int(action[0] * self.max_speed)
+        right_speed = int(action[1] * self.max_speed)
+        
+        # Execute movement
+        self.rob.move_blocking(left_speed, right_speed, self.action_duration)
 
     def detect_collision(self, state: np.ndarray, threshold: Optional[float] = None) -> bool:
         """Detect collision given normalized state (uses 0-1 scale)."""
         if threshold is None:
             threshold = self._collision_threshold
-        return float(np.max(state)) > threshold
-
-    # def compute_reward(self, state: np.ndarray, action_idx: int, collision: bool) -> float:
-    #     """Simple reward: small positive for FORWARD, penalty on collision."""
-    #     return np.sum(state ** 2) * ( -10.0 if collision else 0.1)
+        # Only check IR sensors (first 8 values), not green detection
+        return float(np.max(state[:8])) > threshold
     
-    def compute_reward_simulation(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
-        """Simple reward: small positive for FORWARD, penalty on collision."""
-        reward = 0.0
-        if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.5
-        elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.5
+    def get_food_count(self) -> int:
+        """Get number of food items collected (only works in simulation)."""
+        if isinstance(self.rob, SimulationRobobo):
+            try:
+                return self.rob.get_nr_food_collected()
+            except:
+                return 0
+        return 0
 
+    def compute_reward_simulation(self, state: np.ndarray, action: np.ndarray, 
+                                   collision: bool, food_collected: int = 0) -> float:
+        """Reward for food collection task.
+        - Large positive reward for collecting food
+        - Penalty for collision
+        - Small reward for forward movement
+        - Bonus for approaching green (food)
+        """
+        reward = 0.0
+        
+        # Huge reward for collecting food
+        if food_collected > 0:
+            reward += 10.0 * food_collected
+        
+        # Penalty for collision
         if collision:
-            reward -= np.max(state)
-        reward -= np.sum(state ** 4)
+            reward -= 5.0
+        
+        # Small reward for moving forward (encourage exploration)
+        forward_speed = (action[0] + action[1]) / 2.0
+        reward += 0.1 * forward_speed
+        
+        # Bonus for detecting green (approaching food)
+        green_value = state[8]  # Last element is green detection
+        reward += 0.5 * green_value
+        
+        # Small penalty for proximity to obstacles (encourage clearance)
+        obstacle_penalty = np.mean(state[:8] ** 2)
+        reward -= 0.1 * obstacle_penalty
+        
         return float(reward)
 
-    def compute_reward_hardware(self, state: np.ndarray, action_idx: int, collision: bool, distance_traveled: float = 0.0) -> float:
-        """Simple reward: small positive for FORWARD, penalty on collision."""
+    def compute_reward_hardware(self, state: np.ndarray, action: np.ndarray, 
+                                 collision: bool, food_collected: int = 0) -> float:
+        """Hardware reward (food collection not available, focus on green detection)."""
         reward = 0.0
-        if self.actions[int(action_idx)] == "FORWARD":
-            reward += 0.1
-        elif self.actions[int(action_idx)] == "BACKWARD":
-            reward -= 0.1
+        
+        # Penalty for collision
         if collision:
-            reward -= np.max(state)
-        reward -= np.sum(state ** 4)
+            reward -= 3.0
+        
+        # Reward for forward movement
+        forward_speed = (action[0] + action[1]) / 2.0
+        reward += 0.2 * forward_speed
+        
+        # Reward for detecting green
+        green_value = state[8]
+        reward += 1.0 * green_value
+        
+        # Penalty for proximity to obstacles
+        obstacle_penalty = np.mean(state[:8] ** 2)
+        reward -= 0.2 * obstacle_penalty
+        
         return float(reward)
 
     @staticmethod

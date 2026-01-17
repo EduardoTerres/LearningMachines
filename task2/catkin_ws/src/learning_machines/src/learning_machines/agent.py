@@ -54,18 +54,18 @@ def create_q_network(state_dim: int = 8, num_actions: int = 6) -> keras.Model:
 
 
 class SACAgent:
-    """Soft Actor-Critic (SAC) agent adapted for discrete action spaces.
+    """Soft Actor-Critic (SAC) agent for continuous action spaces.
     
     This implementation uses:
-    - Categorical policy with Gumbel-Softmax for reparameterization
-    - Q-networks that output Q-values for each discrete action
-    - Discrete entropy calculation
+    - Gaussian policy with reparameterization trick
+    - Q-networks that output Q-values for continuous actions
+    - Continuous entropy calculation
     
     Args:
         state_dim: Dimension of the state space
-        action_dim: Number of discrete actions
-        action_low: Not used (for compatibility)
-        action_high: Not used (for compatibility)
+        action_dim: Dimension of continuous action space
+        action_low: Lower bound for actions (default -1)
+        action_high: Upper bound for actions (default 1)
         lr: Learning rate for actor and critic networks
         gamma: Discount factor
         tau: Soft update coefficient for target networks
@@ -74,20 +74,16 @@ class SACAgent:
         batch_size: Batch size for training
         replay_size: Size of replay buffer
     """
-    def __init__(self, state_dim: int, action_dim: int, action_low=None, action_high=None,
-                 lr=3e-3, gamma=0.99, tau=0.005, alpha=0.15, batch_size=64, replay_size=100000,
-                 epsilon_start=0.1, epsilon_end=0.01, epsilon_decay=0.995):
+    def __init__(self, state_dim: int, action_dim: int, action_low=-1.0, action_high=1.0,
+                 lr=3e-4, gamma=0.99, tau=0.005, alpha=0.2, batch_size=64, replay_size=100000):
         self.state_dim = state_dim
         self.action_dim = action_dim
+        self.action_low = action_low
+        self.action_high = action_high
         self.gamma = gamma
         self.tau = tau
         self.alpha = alpha  # Entropy coefficient - can be modified during training
         self.batch_size = batch_size
-        
-        # Exploration parameters
-        self.epsilon = epsilon_start
-        self.epsilon_end = epsilon_end
-        self.epsilon_decay = epsilon_decay
 
         self.replay_buffer = ReplayBuffer(replay_size)
 
@@ -102,48 +98,55 @@ class SACAgent:
 
         self.actor_opt = keras.optimizers.Adam(lr)
         self.critic_opt = keras.optimizers.Adam(lr)
+        
+        # Log std bounds for numerical stability
+        self.log_std_min = -20
+        self.log_std_max = 2
 
     def _build_actor(self):
-        """Build actor network that outputs action probabilities (logits)."""
+        """Build actor network that outputs mean and log_std for Gaussian policy."""
         inp = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(64, activation='relu')(inp)
-        x = layers.Dense(64, activation='relu')(x)
-        logits = layers.Dense(self.action_dim)(x)  # No activation - raw logits
-        model = keras.Model(inp, logits)
+        x = layers.Dense(256, activation='relu')(inp)
+        x = layers.Dense(256, activation='relu')(x)
+        
+        # Output mean and log_std for Gaussian distribution
+        mean = layers.Dense(self.action_dim)(x)
+        log_std = layers.Dense(self.action_dim)(x)
+        
+        model = keras.Model(inp, [mean, log_std])
         return model
 
     def _build_critic(self):
-        """Build critic network that outputs Q-values for all actions."""
-        s = layers.Input(shape=(self.state_dim,))
-        x = layers.Dense(64, activation='relu')(s)
-        x = layers.Dense(64, activation='relu')(x)
-        q_values = layers.Dense(self.action_dim)(x)  # Q-value for each action
-        return keras.Model(s, q_values)
-
-    def decay_epsilon(self) -> None:
-        if self.epsilon > self.epsilon_end:
-            self.epsilon *= self.epsilon_decay
-            if self.epsilon < self.epsilon_end:
-                self.epsilon = self.epsilon_end
+        """Build critic network that takes state and action as input."""
+        state_input = layers.Input(shape=(self.state_dim,))
+        action_input = layers.Input(shape=(self.action_dim,))
+        
+        # Concatenate state and action
+        x = layers.Concatenate()([state_input, action_input])
+        x = layers.Dense(256, activation='relu')(x)
+        x = layers.Dense(256, activation='relu')(x)
+        q_value = layers.Dense(1)(x)  # Single Q-value output
+        
+        return keras.Model([state_input, action_input], q_value)
 
     def select_action(self, state: np.ndarray, training: bool = True):
-        """Select action using epsilon-greedy with categorical distribution."""
+        """Select action using Gaussian policy with reparameterization."""
         s = state.reshape(1, -1).astype(np.float32)
-        logits = self.actor(s, training=False)
+        mean, log_std = self.actor(s, training=False)
         
         if training:
-            # Epsilon-greedy exploration
-            if random.random() < self.epsilon:
-                action_idx = random.randint(0, self.action_dim - 1)
-            else:
-                # Sample from categorical distribution
-                action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
+            # Sample from Gaussian distribution
+            std = tf.exp(log_std)
+            action = mean + std * tf.random.normal(tf.shape(mean))
         else:
-            # Use greedy action during evaluation
-            # action_idx = tf.argmax(logits[0]).numpy()
-            action_idx = tf.random.categorical(logits, 1)[0, 0].numpy()
+            # Use mean for deterministic evaluation
+            action = mean
         
-        return int(action_idx)
+        # Apply tanh squashing and scale to action bounds
+        action = tf.tanh(action)
+        action = action * (self.action_high - self.action_low) / 2.0 + (self.action_high + self.action_low) / 2.0
+        
+        return action.numpy()[0]
 
     def train_step(self) -> Optional[float]:
         if len(self.replay_buffer) < self.batch_size:
@@ -234,7 +237,7 @@ class SACAgent:
     def get_properties(self) -> dict:
         """Return agent hyperparameters for logging."""
         return {
-            "algorithm": "SAC",
+            "algorithm": "SAC_Continuous",
             "state_dim": int(self.state_dim),
             "action_dim": int(self.action_dim),
             "learning_rate": float(self.actor_opt.learning_rate.numpy()),
@@ -243,9 +246,6 @@ class SACAgent:
             "alpha": float(self.alpha),
             "batch_size": int(self.batch_size),
             "replay_buffer_size": int(self.replay_buffer.buffer.maxlen),
-            "epsilon_start": float(self.epsilon),
-            "epsilon_end": float(self.epsilon_end),
-            "epsilon_decay": float(self.epsilon_decay)
         }
 
 

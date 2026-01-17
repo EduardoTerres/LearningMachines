@@ -20,31 +20,6 @@ INIT_MODEL_PATH = None
 # INIT_MODEL_PATH = "/root/results/sac_15-01-2026_16-19-31/sac_model_final.h5"
 INSTANCE = None
 
-# Dummy run
-# from learning_machines import test_env
-# RoboboIREnv.test_env(mode="--simulation")
-# exit(0)
-
-def get_action_probabilities(agent, state, agent_type):
-    """Get action probabilities from agent's policy."""
-    state_reshaped = state.reshape(1, -1).astype(np.float32)
-    
-    if agent_type == 'dqn':
-        q_vals = agent.q_network.predict(state_reshaped, verbose=0)[0]
-        # Convert Q-values to probabilities using softmax
-        exp_q = np.exp(q_vals - np.max(q_vals))
-        probs = exp_q / np.sum(exp_q)
-        return probs, q_vals
-    elif agent_type == 'sac':
-        # Get logits from actor network
-        logits = agent.actor.predict(state_reshaped, verbose=0)[0]
-        # Convert logits to probabilities using softmax
-        exp_logits = np.exp(logits - np.max(logits))
-        probs = exp_logits / np.sum(exp_logits)
-        return probs, logits
-    else:
-        raise ValueError("Invalid agent type")
-
 def main():
     if len(sys.argv) < 2:
         raise ValueError("Pass --hardware or --simulation")
@@ -107,54 +82,55 @@ def main():
 
     log_file_path = os.path.join(results_dir, f"training_log_{ts}.txt")
     log_file = open(log_file_path, 'w')
-    log_file.write(f"Training Log - Episode | Step | State | Action Distribution | Probability of Selected Action\n")
-    log_file.write("=" * 100 + "\n")
+    log_file.write(f"Training Log - Episode | Step | State | Green Detection | ViT Food Score | Action\n")
+    log_file.write("=" * 130 + "\n")
 
     for ep in range(num_episodes):
         obs, _ = env.reset()
         total_reward = 0.0
         episode_losses = []
-        episode_q_values = []
         episode_collisions = 0
+        episode_food_collected = 0
         
         for t in range(max_steps):
-            # Get action probabilities BEFORE selecting action
-            action_probs, q_vals = get_action_probabilities(agent, obs, agent_type)
-            
-            # Track Q-values
-            if q_vals is not None:
-                episode_q_values.append(np.mean(q_vals))
-            
-            # Select action (existing code - unchanged)
+            # Select continuous action
             a = agent.select_action(obs, training=True)
             
             # Format state as readable string
-            state_str = "[" + ", ".join([f"{s:.3f}" for s in obs]) + "]"
+            state_str = "[" + ", ".join([f"{s:.3f}" for s in obs[:8]]) + "]"
+            green_value = obs[8] if len(obs) > 8 else 0.0
+            vit_food_score = obs[9] if len(obs) > 9 else 0.0
             
-            # Format action distribution as readable string
-            action_dist_str = " | ".join([f"{env.actions[i]}: {action_probs[i]:.4f}" for i in range(len(env.actions))])
+            # Format action as readable string
+            action_str = f"[L:{a[0]:.3f}, R:{a[1]:.3f}]"
             
             # Print to screen
             print(f"\n--- Episode {ep+1} | Step {t+1} ---")
-            print(f"State: {state_str}")
-            print(f"Action Distribution: {action_dist_str}")
-            print(f"Selected Action: {env.actions[a]} (probability: {action_probs[a]:.4f})")
+            print(f"State (IRs): {state_str}")
+            print(f"Green Detection: {green_value:.4f}")
+            print(f"ViT Food Score: {vit_food_score:.4f}")
+            print(f"Action (wheel speeds): {action_str}")
             
             # Write to log file
             log_file.write(f"Episode {ep+1} | Step {t+1} | ")
             log_file.write(f"State: {state_str} | ")
-            log_file.write(f"Action Distribution: {action_dist_str} | ")
-            log_file.write(f"Selected: {env.actions[a]} (prob: {action_probs[a]:.4f})\n")
+            log_file.write(f"Green: {green_value:.4f} | ViT: {vit_food_score:.4f} | ")
+            log_file.write(f"Action: {action_str}\n")
             log_file.flush()
             
-            # Rest of existing code - UNCHANGED
-            next_obs, reward, done, _, _ = env.step(a)
+            # Execute action
+            next_obs, reward, done, truncated, info = env.step(a)
+            
+            # Track food collection
+            if 'food_collected' in info and info['food_collected'] > 0:
+                episode_food_collected += info['food_collected']
+                print(f">>> FOOD COLLECTED! Total: {episode_food_collected}")
             
             # Track collisions
             if env.detect_collision(next_obs):
                 episode_collisions += 1
             
-            agent.replay_buffer.add(obs, a, reward, next_obs, done)
+            agent.replay_buffer.add(obs, a, reward, next_obs, done or truncated)
             loss = agent.train_step()
             
             # Track loss
@@ -164,21 +140,17 @@ def main():
             obs = next_obs
             total_reward += reward
             rob.sleep(0.2)
-            if done:
-                print("Episode finished after {} timesteps".format(t+1))
+            if done or truncated:
+                print(f"Episode finished after {t+1} timesteps")
                 break
         
-        if hasattr(agent, 'decay_epsilon'):
-            agent.decay_epsilon()
-        
-        # Store comprehensive statistics - CONVERT NUMPY TYPES TO PYTHON TYPES FOR JSON
+        # Store comprehensive statistics
         episode_stat = {
             "episode": int(ep),
             "steps": int(t + 1),
             "reward": float(total_reward),
-            "epsilon": float(getattr(agent, 'epsilon', 0)) if getattr(agent, 'epsilon', None) is not None else None,
             "collisions": int(episode_collisions),
-            "mean_q_value": float(np.mean(episode_q_values)) if episode_q_values else None,
+            "food_collected": int(episode_food_collected),
             "mean_loss": float(np.mean(episode_losses)) if episode_losses else None,
         }
         stats.append(episode_stat)
@@ -190,7 +162,7 @@ def main():
             with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
                 json.dump(stats, f, indent=2)
 
-        print(f"\nEpisode {ep+1}/{num_episodes}  reward={total_reward:.2f} eps={getattr(agent, 'epsilon', 'N/A')} collisions={episode_collisions}")
+        print(f"\nEpisode {ep+1}/{num_episodes}  reward={total_reward:.2f} collisions={episode_collisions} food={episode_food_collected}")
 
     # Close log file
     log_file.close()
