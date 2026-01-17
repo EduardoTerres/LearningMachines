@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal trainer using the gym `RoboboIREnv` and `DQNAgent`.
-
+"""
 Usage: `python train.py --simulation` or `--hardware`.
 """
 import sys
@@ -11,9 +10,8 @@ from datetime import datetime
 
 from robobo_interface import SimulationRobobo, HardwareRobobo
 
-from learning_machines import RoboboIREnv, DQNAgent, SACAgent, plot_training_statistics
+from learning_machines import RoboboIREnv, SACAgent, plot_training_statistics
 
-# Agent selection: change default here or pass `--agent sac` on CLI. Options: 'dqn', 'sac'
 AGENT = "sac"
 
 INIT_MODEL_PATH = None
@@ -25,35 +23,21 @@ def main():
         raise ValueError("Pass --hardware or --simulation")
     mode = sys.argv[1]
     if mode == "--hardware":
-        rob = HardwareRobobo(camera=False)
+        rob = HardwareRobobo(camera=True)
         INSTANCE = "hardware"
     elif mode == "--simulation":
-        rob = SimulationRobobo(identifier=1)
+        rob = SimulationRobobo()
         INSTANCE = "simulation"
     else:
         raise ValueError("Invalid mode")
 
     env = RoboboIREnv(rob=rob)
 
-    # allow CLI override: --agent sac or --agent dqn
-    agent_type = AGENT
-    if '--agent' in sys.argv:
-        i = sys.argv.index('--agent')
-        if i + 1 < len(sys.argv):
-            agent_type = sys.argv[i + 1]
-        else:
-            raise ValueError("Provide agent type after --agent")
-
     # create a small sample to infer dims
     sample_obs, _ = env.reset()
     state_dim = int(np.array(sample_obs).reshape(-1).shape[0])
 
-    if agent_type == 'dqn':
-        agent = DQNAgent(state_dim=state_dim, action_dim=env.action_space.n)
-    elif agent_type == 'sac':
-        agent = SACAgent(state_dim=state_dim, action_dim=env.action_space.n)
-    else:
-        raise ValueError("Invalid agent type")
+    agent = SACAgent(state_dim=state_dim, action_dim=2)
 
     # Load initial model if provided
     if INIT_MODEL_PATH:
@@ -157,7 +141,7 @@ def main():
 
         # Save intermediate model
         if ep % 20 == 0:
-            intermediate_model_path = os.path.join(results_dir, f"{agent_type}_model_ep{ep+1}.h5")
+            intermediate_model_path = os.path.join(results_dir, f"{AGENT}_model_ep{ep+1}.h5")
             agent.save_model(intermediate_model_path)
             with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
                 json.dump(stats, f, indent=2)
@@ -168,13 +152,13 @@ def main():
     log_file.close()
 
     # Save model and stats
-    model_path = os.path.join(results_dir, f"{agent_type}_model_final.h5")
+    model_path = os.path.join(results_dir, f"{AGENT}_model_final.h5")
     agent.save_model(model_path)
     with open(os.path.join(results_dir, f"stats_{ts}.json"), "w") as f:
         json.dump(stats, f, indent=2)
     
     # Create visualizations using the separate function
-    plot_training_statistics(stats, results_dir, ts, agent_type)
+    plot_training_statistics(stats, results_dir, ts, AGENT)
     
     print(f"\nSaved model to {model_path}")
     print(f"Saved log to {log_file_path}")

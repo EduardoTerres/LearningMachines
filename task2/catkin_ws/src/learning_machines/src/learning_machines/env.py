@@ -153,7 +153,7 @@ class RoboboIREnv(gym.Env):
                 normalized.append(min(max(norm_val, 0.0), 1.0))
         return normalized
 
-    def detect_green_in_image(self, image: np.ndarray) -> float:
+    def _detect_green_in_image(self, image: np.ndarray) -> float:
         """Detect green color in image and return normalized value [0,1].
         Higher value means more green (food) detected."""
         if image is None or image.size == 0:
@@ -175,7 +175,7 @@ class RoboboIREnv(gym.Env):
         
         return float(np.clip(green_ratio * 5.0, 0.0, 1.0))  # Scale up and clip
 
-    def detect_food_with_vit(self, image: np.ndarray) -> float:
+    def _detect_food_with_vit(self, image: np.ndarray) -> float:
         """Detect food in image using Vision Transformer (ViT) model.
         
         Uses a pre-trained ViT model to classify whether the image contains
@@ -227,12 +227,10 @@ class RoboboIREnv(gym.Env):
             else:
                 state.append(self.normalize_irs([val], [0.0], [self.sensor_max_values[i]])[0])
         
-        # Add green detection from camera
         try:
             image = self.rob.read_image_front()
-            green_value = self.detect_green_in_image(image)
-            # Add ViT-based food detection
-            vit_food_score = self.detect_food_with_vit(image)
+            green_value = self._detect_green_in_image(image)
+            vit_food_score = self._detect_food_with_vit(image)
         except:
             green_value = 0.0
             vit_food_score = 0.0
@@ -286,15 +284,14 @@ class RoboboIREnv(gym.Env):
         if collision:
             reward -= 5.0
         
-        # Small reward for moving forward (encourage exploration)
+        # Small reward for moving forward
         forward_speed = (action[0] + action[1]) / 2.0
-        reward += 0.1 * forward_speed
+        reward += 0.2 * forward_speed
         
-        # Bonus for detecting green (approaching food)
-        green_value = state[8]  # Last element is green detection
-        reward += 0.5 * green_value
+        # Bonus for detecting green
+        reward += 0.5 * (state[7] + state[8])
         
-        # Small penalty for proximity to obstacles (encourage clearance)
+        # Small penalty for proximity to obstacles
         obstacle_penalty = np.mean(state[:8] ** 2)
         reward -= 0.1 * obstacle_penalty
         

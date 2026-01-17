@@ -64,8 +64,6 @@ class SACAgent:
     Args:
         state_dim: Dimension of the state space
         action_dim: Dimension of continuous action space
-        action_low: Lower bound for actions (default -1)
-        action_high: Upper bound for actions (default 1)
         lr: Learning rate for actor and critic networks
         gamma: Discount factor
         tau: Soft update coefficient for target networks
@@ -74,12 +72,13 @@ class SACAgent:
         batch_size: Batch size for training
         replay_size: Size of replay buffer
     """
-    def __init__(self, state_dim: int, action_dim: int, action_low=-1.0, action_high=1.0,
-                 lr=3e-4, gamma=0.99, tau=0.005, alpha=0.2, batch_size=64, replay_size=100000):
+    def __init__(
+            self, state_dim: int, action_dim: int,
+            lr=3e-4, gamma=0.99, tau=0.005,alpha=0.0,
+            batch_size=64, replay_size=100000,
+        ):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.action_low = action_low
-        self.action_high = action_high
         self.gamma = gamma
         self.tau = tau
         self.alpha = alpha  # Entropy coefficient - can be modified during training
@@ -144,7 +143,6 @@ class SACAgent:
         
         # Apply tanh squashing and scale to action bounds
         action = tf.tanh(action)
-        action = action * (self.action_high - self.action_low) / 2.0 + (self.action_high + self.action_low) / 2.0
         
         return action.numpy()[0]
 
@@ -155,40 +153,41 @@ class SACAgent:
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
         states = states.astype(np.float32)
         next_states = next_states.astype(np.float32)
-        actions = actions.astype(np.int32)
+        actions = actions.astype(np.float32)
         rewards = rewards.reshape(-1, 1).astype(np.float32)
         dones = dones.reshape(-1, 1).astype(np.float32)
 
         # Compute target Q-values
-        next_logits = self.actor(next_states, training=False)
-        next_probs = tf.nn.softmax(next_logits)
-        next_log_probs = tf.nn.log_softmax(next_logits)
+        next_mean, next_log_std = self.actor(next_states, training=False)
+        next_std = tf.exp(tf.clip_by_value(next_log_std, self.log_std_min, self.log_std_max))
+        
+        # Sample next actions with reparameterization
+        eps = tf.random.normal(tf.shape(next_mean))
+        next_actions_unsquashed = next_mean + next_std * eps
+        next_actions = tf.tanh(next_actions_unsquashed)
+        
+        # Compute log probability of next actions
+        next_log_probs = -0.5 * (tf.square((next_actions_unsquashed - next_mean) / (next_std + 1e-8)) + 
+                                  2 * next_log_std + np.log(2 * np.pi))
+        next_log_probs = tf.reduce_sum(next_log_probs, axis=1, keepdims=True)
+        # Correction for tanh squashing
+        next_log_probs -= tf.reduce_sum(tf.math.log(1 - tf.square(next_actions) + 1e-6), axis=1, keepdims=True)
         
         # Target Q-values for next state
-        target_q1_next = self.target_critic1(next_states, training=False)
-        target_q2_next = self.target_critic2(next_states, training=False)
+        target_q1_next = self.target_critic1([next_states, next_actions], training=False)
+        target_q2_next = self.target_critic2([next_states, next_actions], training=False)
         target_q_next = tf.minimum(target_q1_next, target_q2_next)
         
         # Soft Q-value: E[Q] - alpha * H (entropy term)
-        # For discrete: sum over actions of: prob * (Q - alpha * log(prob))
-        next_value = tf.reduce_sum(
-            next_probs * (target_q_next - self.alpha * next_log_probs),
-            axis=1,
-            keepdims=True
-        )
+        next_value = target_q_next - self.alpha * next_log_probs
         
         # TD target
         y = rewards + self.gamma * (1 - dones) * next_value
 
         # Update critics
         with tf.GradientTape() as tape:
-            q1_all = self.critic1(states, training=True)
-            q2_all = self.critic2(states, training=True)
-            
-            # Get Q-values for taken actions
-            indices = tf.stack([tf.range(self.batch_size), actions], axis=1)
-            q1 = tf.expand_dims(tf.gather_nd(q1_all, indices), 1)
-            q2 = tf.expand_dims(tf.gather_nd(q2_all, indices), 1)
+            q1 = self.critic1([states, actions], training=True)
+            q2 = self.critic2([states, actions], training=True)
             
             c_loss = tf.reduce_mean((q1 - y)**2) + tf.reduce_mean((q2 - y)**2)
         
@@ -198,19 +197,27 @@ class SACAgent:
 
         # Update actor
         with tf.GradientTape() as tape:
-            logits = self.actor(states, training=True)
-            probs = tf.nn.softmax(logits)
-            log_probs = tf.nn.log_softmax(logits)
+            mean, log_std = self.actor(states, training=True)
+            std = tf.exp(tf.clip_by_value(log_std, self.log_std_min, self.log_std_max))
             
-            # Q-values from current critics
-            q1_all = self.critic1(states, training=False)
-            q2_all = self.critic2(states, training=False)
-            q_all = tf.minimum(q1_all, q2_all)
+            # Reparameterization trick
+            eps = tf.random.normal(tf.shape(mean))
+            actions_unsquashed = mean + std * eps
+            sampled_actions = tf.tanh(actions_unsquashed)
             
-            # Policy objective: maximize E[Q - alpha * log(pi)]
-            # Equivalent to minimizing: sum over actions of: prob * (alpha * log(prob) - Q)
-            inside_term = self.alpha * log_probs - q_all
-            a_loss = tf.reduce_mean(tf.reduce_sum(probs * inside_term, axis=1))
+            # Log probability
+            log_probs = -0.5 * (tf.square((actions_unsquashed - mean) / (std + 1e-8)) + 
+                                2 * log_std + np.log(2 * np.pi))
+            log_probs = tf.reduce_sum(log_probs, axis=1, keepdims=True)
+            log_probs -= tf.reduce_sum(tf.math.log(1 - tf.square(sampled_actions) + 1e-6), axis=1, keepdims=True)
+            
+            # Q-values for sampled actions
+            q1_pi = self.critic1([states, sampled_actions], training=False)
+            q2_pi = self.critic2([states, sampled_actions], training=False)
+            q_pi = tf.minimum(q1_pi, q2_pi)
+            
+            # Actor loss: maximize Q - alpha * log_prob
+            a_loss = tf.reduce_mean(self.alpha * log_probs - q_pi)
         
         actor_grads = tape.gradient(a_loss, self.actor.trainable_variables)
         self.actor_opt.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
@@ -220,9 +227,6 @@ class SACAgent:
             tgt.assign(self.tau * var + (1 - self.tau) * tgt)
         for var, tgt in zip(self.critic2.variables, self.target_critic2.variables):
             tgt.assign(self.tau * var + (1 - self.tau) * tgt)
-
-        # Decay epsilon
-        self.decay_epsilon()
 
         return float(c_loss.numpy())
 
@@ -246,137 +250,4 @@ class SACAgent:
             "alpha": float(self.alpha),
             "batch_size": int(self.batch_size),
             "replay_buffer_size": int(self.replay_buffer.buffer.maxlen),
-        }
-
-
-class DQNAgent:
-    """Deep Q-Network agent (clean reimplementation).
-
-    Interface-compatible with the existing agents:
-    - `select_action(state, training=True)` -> int (discrete action)
-    - `train_step()` -> Optional[float] (returns loss or None if not enough data)
-    - `save_model(filepath)`, `load_model(filepath)`
-
-    This implementation uses a target network, an experience replay buffer
-    (the `ReplayBuffer` above), epsilon-greedy exploration and a simple
-    Double-DQN style target calculation.
-    """
-
-    def __init__(
-        self,
-        state_dim: int,
-        action_dim: int,
-        lr: float = 1e-3,
-        gamma: float = 0.99,
-        batch_size: int = 64,
-        replay_size: int = 100000,
-        epsilon_start: float = 1.0,
-        epsilon_end: float = 0.01,
-        epsilon_decay: float = 0.995,
-        target_update_frequency: int = 1000,
-    ):
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        self.gamma = gamma
-        self.batch_size = batch_size
-        self.target_update_frequency = target_update_frequency
-
-        # exploration
-        self.epsilon = epsilon_start
-        self.epsilon_end = epsilon_end
-        self.epsilon_decay = epsilon_decay
-
-        # networks
-        self.q_network = create_q_network(state_dim, action_dim)
-        self.target_network = create_q_network(state_dim, action_dim)
-        self.update_target_network()
-
-        # optimizer / loss
-        self.optimizer = keras.optimizers.Adam(learning_rate=lr)
-        self.loss_fn = keras.losses.MeanSquaredError()
-
-        # replay buffer
-        self.replay_buffer = ReplayBuffer(replay_size)
-
-        self.step_count = 0
-
-    def update_target_network(self) -> None:
-        self.target_network.set_weights(self.q_network.get_weights())
-
-    def select_action(self, state: np.ndarray, training: bool = True) -> int:
-        if training and random.random() < self.epsilon:
-            return random.randint(0, self.action_dim - 1)
-        s = state.reshape(1, -1).astype(np.float32)
-        q_vals = self.q_network.predict(s, verbose=0)[0]
-        return int(np.argmax(q_vals))
-
-    def decay_epsilon(self) -> None:
-        if self.epsilon > self.epsilon_end:
-            self.epsilon *= self.epsilon_decay
-            if self.epsilon < self.epsilon_end:
-                self.epsilon = self.epsilon_end
-
-    def train_step(self) -> Optional[float]:
-        if len(self.replay_buffer) < self.batch_size:
-            return None
-
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
-
-        states = states.astype(np.float32)
-        next_states = next_states.astype(np.float32)
-        actions = actions.astype(np.int32)
-        rewards = rewards.astype(np.float32)
-        dones = dones.astype(np.float32)
-
-        # Double-DQN target calculation:
-        # action selection by online network, evaluation by target network
-        next_q_online = self.q_network.predict(next_states, verbose=0)
-        next_actions = np.argmax(next_q_online, axis=1)
-        next_q_target = self.target_network.predict(next_states, verbose=0)
-        next_q_values = next_q_target[np.arange(self.batch_size), next_actions]
-
-        targets = rewards + (1.0 - dones) * (self.gamma * next_q_values)
-
-        # Get current Q-values and replace only taken actions with targets
-        with tf.GradientTape() as tape:
-            q_preds = self.q_network(states, training=True)
-            # gather predicted Q for taken actions
-            indices = tf.stack([tf.range(self.batch_size), tf.convert_to_tensor(actions)], axis=1)
-            q_taken = tf.gather_nd(q_preds, indices)
-            loss = self.loss_fn(targets, q_taken)
-
-        grads = tape.gradient(loss, self.q_network.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.q_network.trainable_variables))
-
-        # update target network periodically (hard update)
-        self.step_count += 1
-        if self.step_count % self.target_update_frequency == 0:
-            self.update_target_network()
-
-        # decay epsilon
-        self.decay_epsilon()
-
-        return float(loss.numpy())
-
-    def save_model(self, filepath: str) -> None:
-        self.q_network.save(filepath)
-
-    def load_model(self, filepath: str) -> None:
-        self.q_network = keras.models.load_model(filepath)
-        self.update_target_network()
-
-    def get_properties(self) -> dict:
-        """Return agent hyperparameters for logging."""
-        return {
-            "algorithm": "DQN",
-            "state_dim": int(self.state_dim),
-            "action_dim": int(self.action_dim),
-            "learning_rate": float(self.optimizer.learning_rate.numpy()),
-            "gamma": float(self.gamma),
-            "batch_size": int(self.batch_size),
-            "replay_buffer_size": int(self.replay_buffer.buffer.maxlen),
-            "epsilon_start": float(self.epsilon),
-            "epsilon_end": float(self.epsilon_end),
-            "epsilon_decay": float(self.epsilon_decay),
-            "target_update_frequency": int(self.target_update_frequency)
         }

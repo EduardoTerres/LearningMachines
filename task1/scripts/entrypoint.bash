@@ -7,6 +7,6 @@ source /root/catkin_ws/setup.bash
 export OPENCV_IO_ENABLE_OPENEXR=0
 export OPENCV_IO_ENABLE_OPENEXR=0
 
-# rosrun learning_machines train.py "$@"
-rosrun learning_machines deploy.py "$@"
+rosrun learning_machines train.py "$@"
+# rosrun learning_machines deploy.py "$@"
 # rosrun learning_machines validation.py "$@"
